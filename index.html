@@ -132,7 +132,7 @@
 </style>
 </head>
 <body>
-<div class="test">試作版です（表示されている学生・数字はすべて架空のものです）</div>
+<div class="test">試作版です（建築士専攻科は本物の出欠、それ以外の学生は架空のデータです）</div>
 <div id="app">
   <div class="center"><div class="spinner"></div><div>読み込んでいます…</div></div>
 </div>
@@ -261,7 +261,7 @@ function renderMypage(){
   const head = '<header class="top"><div class="in">'
     + '<div class="school">鹿児島工学院専門学校　' + (parent ? '保護者マイページ' : '学生マイページ') + '</div>'
     + '<div class="who">' + esc(p.氏名) + (parent ? '<small>さん</small>' : '') + '</div>'
-    + '<div class="meta">' + esc(p.学科) + '　' + esc(p.学年) + '年　担任：' + esc(p.担任) + '</div>'
+    + '<div class="meta">' + esc(p.学科) + (p.学年 ? '　' + esc(p.学年) + '年' : '') + (p.担任 ? '　担任：' + esc(p.担任) : '') + '</div>'
     + '<div class="asof">' + esc(d.asOf) + '</div>'
     + '<div class="upd">この画面の内容は、毎日1回（19:30ごろ）更新されます。</div>' + tabs + '</div></header>';
 
@@ -321,7 +321,7 @@ function renderMypage(){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版9' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版10' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
