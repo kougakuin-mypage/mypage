@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>マイページ｜鹿児島工学院専門学校</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
 <style>
   :root{
     --navy:#24466c; --navy-2:#2f5a88; --navy-soft:#e8eef6;
@@ -19,7 +18,7 @@
   .note,.notice p,.card>div{word-break:auto-phrase;text-wrap:pretty}
   html,body{margin:0}
   body{
-    font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,sans-serif;
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Noto Sans CJK JP","Yu Gothic UI",Meiryo,sans-serif;
     background:var(--bg); color:var(--ink); font-size:16px; line-height:1.6;
     -webkit-text-size-adjust:100%;
   }
@@ -124,6 +123,7 @@
   .steps li{margin:2px 0}
   footer{font-size:12.5px;color:var(--sub);text-align:center;margin-top:24px;line-height:1.8}
   footer a{color:var(--navy)}
+  .refresh{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(29,39,51,.85);color:#fff;font-size:12.5px;border-radius:999px;padding:5px 14px;z-index:9}
   .test{background:#fff4d6;color:#7a5a00;font-size:12px;text-align:center;padding:4px}
 </style>
 </head>
@@ -167,18 +167,47 @@ async function api(action, extra){
     headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify(Object.assign({ action, idToken }, extra || {})),
   });
-  return res.json();
+  const text = await res.text();
+  try{ return JSON.parse(text); }
+  catch(_){ throw new Error('応答 ' + res.status + '：' + text.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').slice(0,160)); }
 }
 
+/* 速さのため：前に開いたときの中身をこのスマホに覚えておき、まずそれを出してから新しい中身に入れ替える */
+function myId(){ try{ const t = liff.getDecodedIDToken(); return t && t.sub; }catch(_){ return null; } }
+function readSaved(){
+  try{ const v = JSON.parse(localStorage.getItem('mypage_last') || 'null'); return v && v.id === myId() ? v.data : null; }catch(_){ return null; }
+}
+function save(data){ try{ localStorage.setItem('mypage_last', JSON.stringify({ id: myId(), data })); }catch(_){} }
+
 async function load(){
-  center('<div class="spinner"></div><div>読み込んでいます…</div>');
+  const saved = readSaved();
+  let badge = null;
+  if(saved && saved.registered){
+    state.data = saved; state.idx = Math.min(state.idx, saved.people.length - 1);
+    renderMypage();
+    badge = document.createElement('div'); badge.className = 'refresh'; badge.textContent = '最新の内容に更新しています…';
+    document.body.appendChild(badge);
+  }else{
+    center('<div class="spinner"></div><div>読み込んでいます…</div>');
+  }
   try{
     const r = await api('me');
+    if(badge) badge.remove();
     if(!r.ok) return showError(r.error);
-    if(!r.registered) return renderRegister();
+    if(!r.registered){ save(null); return renderRegister(); }
+    save(r);
+    const y = window.scrollY;
     state.data = r; state.idx = Math.min(state.idx, r.people.length - 1);
     renderMypage();
-  }catch(e){ showError('通信がうまくいきませんでした。電波のよいところで、もう一度お試しください。'); }
+    if(saved) window.scrollTo(0, y);
+  }catch(e){
+    if(badge){ badge.textContent = '更新できませんでした（前回の内容を表示中）'; setTimeout(() => badge.remove(), 4000); return; }
+    showError('通信がうまくいきませんでした。電波のよいところで、もう一度お試しください。');
+    const d = document.createElement('div');
+    d.style.cssText = 'font-size:11px;color:#8a96a3;max-width:320px;word-break:break-all';
+    d.textContent = '（試作用の詳細）' + (e && e.message ? e.message : e);
+    app.querySelector('.center').appendChild(d);
+  }
 }
 
 /* ---------- 登録画面 ---------- */
