@@ -83,6 +83,9 @@
   .t-欠席{background:var(--red-soft);color:var(--red)}
   .t-遅刻{background:var(--amber-soft);color:var(--amber)}
   .t-欠課{background:var(--navy-soft);color:var(--navy)}
+  .t-早退{background:var(--amber-soft);color:var(--amber)}
+  .t-公欠{background:var(--green-soft);color:var(--green)}
+  .t-確認中{background:var(--bg);color:var(--sub)}
   .t-済{background:var(--green-soft);color:var(--green)}
   .t-未{background:var(--red-soft);color:var(--red)}
   .empty{font-size:14px;color:var(--sub);padding:4px 0}
@@ -318,7 +321,7 @@ function renderMypage(){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-17 版8' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版9' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
