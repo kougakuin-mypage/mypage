@@ -14,6 +14,9 @@
     --red:#c8453c; --red-soft:#fbeceb; --amber:#b7791f; --amber-soft:#fdf3e1;
     --green:#2f855a; --green-soft:#e6f4ec;
   }
+  /* 11/18：学生のページは緑系にして、保護者のページ（紺）と見分けられるようにする */
+  body[data-mode="student"]{--navy:#2e7d32;--navy-2:#388e3c;--navy-soft:#e6f2e7}
+  .warn-box{margin-top:10px;background:var(--amber-soft);color:#8a5a12;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:500}
   *{box-sizing:border-box}
   .note,.notice p,.card>div{word-break:auto-phrase;text-wrap:pretty}
   html,body{margin:0}
@@ -51,7 +54,7 @@
     font-size:16px;margin:0 0 12px;display:flex;align-items:center;gap:8px;color:var(--navy)
   }
   .card h2 .ic{
-    width:28px;height:28px;border-radius:8px;background:var(--navy-soft);
+    width:28px;height:28px;border-radius:8px;background:var(--navy-soft);color:var(--navy);
     display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto
   }
   .card h2 .ic svg{width:16px;height:16px}
@@ -148,12 +151,12 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp
 let state = { data: null, idx: 0 };
 
 const ICON = {
-  cal:'<svg viewBox="0 0 24 24" fill="none" stroke="#24466c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
-  list:'<svg viewBox="0 0 24 24" fill="none" stroke="#24466c" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>',
-  book:'<svg viewBox="0 0 24 24" fill="none" stroke="#24466c" stroke-width="2.2" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/></svg>',
-  doc:'<svg viewBox="0 0 24 24" fill="none" stroke="#24466c" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/></svg>',
-  flag:'<svg viewBox="0 0 24 24" fill="none" stroke="#24466c" stroke-width="2.2" stroke-linejoin="round"><path d="M5 21V4h11l-2 4 2 4H5"/></svg>',
-  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="#24466c" stroke-width="2.2" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+  cal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>',
+  book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/></svg>',
+  doc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/></svg>',
+  flag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M5 21V4h11l-2 4 2 4H5"/></svg>',
+  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
 };
 
 function center(html){ app.innerHTML = '<div class="center">' + html + '</div>'; }
@@ -217,6 +220,7 @@ async function load(){
 
 /* ---------- 登録画面 ---------- */
 function renderRegister(add){
+  document.body.dataset.mode = 'parent';
   app.innerHTML =
     '<header class="top"><div class="in"><div class="school">鹿児島工学院専門学校</div>'
     + '<div class="who">マイページの登録</div></div></header>'
@@ -254,13 +258,14 @@ function card(icon, title, inner, cls){
 
 function renderMypage(){
   const d = state.data, p = d.people[state.idx], parent = p.種別 === '保護者';
+  document.body.dataset.mode = parent ? 'parent' : 'student';
   const tabs = d.people.length > 1
     ? '<div class="tabs">' + d.people.map((x,i) => '<button aria-selected="' + (i===state.idx) + '" onclick="state.idx=' + i + ';renderMypage()">' + esc(x.氏名.replace(/（.*?）/,'')) + '</button>').join('') + '</div>'
     : '';
 
   const head = '<header class="top"><div class="in">'
-    + '<div class="school">鹿児島工学院専門学校　' + (parent ? '保護者マイページ' : '学生マイページ') + '</div>'
-    + '<div class="who">' + esc(p.氏名) + (parent ? '<small>さん</small>' : '') + '</div>'
+    + '<div class="school">鹿児島工学院専門学校　' + (parent ? '保護者マイページ' : 'マイページ（学生）') + '</div>'
+    + '<div class="who">' + esc(p.氏名) + '<small>さん</small></div>'
     + '<div class="meta">' + esc(p.学科) + (p.学年 ? '　' + esc(p.学年) + '年' : '') + (p.担任 ? '　担任：' + esc(p.担任) : '') + '</div>'
     + '<div class="asof">' + esc(d.asOf) + '</div>'
     + '<div class="upd">この画面の内容は、毎日1回（19:30ごろ）更新されます。</div>' + tabs + '</div></header>';
@@ -306,12 +311,23 @@ function renderMypage(){
 
   const grade = '<div class="pdf"><span>前期の成績表（PDF）</span><span class="soon">学期末に掲載</span></div>';
 
-  app.innerHTML = head + '<div class="wrap">'
-    + card('cal', '今年度の出欠', stats, 'first')
-    + card('list', '直近2週間の記録', recent)
-    + card('book', parent ? '補習の残り' : '補習', hoshu)
-    + (parent ? card('doc', '成績表', grade) : '')
-    + card('flag', '行事予定', events)
+  // 11/18：学生のページは、提案資料の形（補習の残り → 今年度の遅刻 → 学校からの緊急連絡）に合わせる
+  const n = a.遅刻, next = n < 5 ? 5 : 5 + 2 * (Math.floor((n - 5) / 2) + 1);
+  const lateStu = '<div class="big"><span class="n">' + n + '</span><span class="u">回</span></div>'
+    + '<div class="warn-box">あと' + (next - n) + '回（' + next + '回）になると、保護者にもLINEでお知らせが届きます。</div>'
+    + '<div class="note" style="margin-top:8px">朝のSHR（9:20）に遅れると、遅刻1回に加えて欠課1コマとして数えます。</div>';
+  const emergency = '<div style="font-size:15px">現在、緊急の連絡はありません。</div><div class="note">休校などのときは、LINEにも届きます。</div>';
+  const body = parent
+    ? card('cal', '今年度の出欠', stats, 'first')
+      + card('list', '直近2週間の記録', recent)
+      + card('book', '補習の残り', hoshu)
+      + card('doc', '成績表', grade)
+      + card('flag', '行事予定', events)
+    : card('book', '補習の残り', hoshu, 'first')
+      + card('cal', '今年度の遅刻', lateStu)
+      + card('bell', '学校からの緊急連絡', emergency)
+      + card('flag', '行事予定', events);
+  app.innerHTML = head + '<div class="wrap">' + body
     /* 11/17：お知らせ欄は外した（職員の入力を増やさないため。大事な連絡は公式LINEの配信で送る） */
     + '<a class="link" href="#" onclick="renderRegister(true);return false;">' + (parent ? 'きょうだいの登録コードを追加する' : '登録コードを追加する') + '</a>'
     + footer() + '</div>';
@@ -321,7 +337,7 @@ function renderMypage(){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版10' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版12' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
