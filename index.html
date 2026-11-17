@@ -195,6 +195,7 @@ async function load(){
     const r = await api('me');
     if(badge) badge.remove();
     if(!r.ok) return showError(r.error);
+    window.__ver = r.ver || '';
     if(!r.registered){ save(null); return renderRegister(); }
     save(r);
     const y = window.scrollY;
@@ -202,7 +203,7 @@ async function load(){
     renderMypage();
     if(saved) window.scrollTo(0, y);
   }catch(e){
-    if(badge){ badge.textContent = '更新できませんでした（前回の内容を表示中）'; setTimeout(() => badge.remove(), 4000); return; }
+    if(badge){ badge.textContent = '更新できませんでした（前回の内容を表示中）：' + (e && e.message ? e.message : e); badge.style.background = '#c8453c'; return; }
     showError('通信がうまくいきませんでした。電波のよいところで、もう一度お試しください。');
     const d = document.createElement('div');
     d.style.cssText = 'font-size:11px;color:#8a96a3;max-width:320px;word-break:break-all';
@@ -316,7 +317,8 @@ function renderMypage(){
 
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
-    + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）</footer>';
+    + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-17 版7' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
