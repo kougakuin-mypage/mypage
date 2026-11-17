@@ -309,7 +309,7 @@ function renderMypage(){
     + card('book', parent ? '補習の残り' : '補習', hoshu)
     + (parent ? card('doc', '成績表', grade) : '')
     + card('flag', '行事予定', events)
-    + card('bell', 'お知らせ', notices)
+    /* 11/17：お知らせ欄は外した（職員の入力を増やさないため。大事な連絡は公式LINEの配信で送る） */
     + '<a class="link" href="#" onclick="renderRegister(true);return false;">' + (parent ? 'きょうだいの登録コードを追加する' : '登録コードを追加する') + '</a>'
     + footer() + '</div>';
   window.scrollTo(0,0);
@@ -318,7 +318,7 @@ function renderMypage(){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-17 版7' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-17 版8' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
