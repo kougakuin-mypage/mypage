@@ -35,6 +35,7 @@
     display:inline-block;margin-top:10px;background:rgba(255,255,255,.14);
     border-radius:999px;padding:3px 12px;font-size:12.5px
   }
+  .upd{font-size:12px;opacity:.8;margin-top:6px}
   .tabs{display:flex;gap:8px;overflow-x:auto;margin:14px 0 0;padding-bottom:2px}
   .tabs button{
     flex:0 0 auto;border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;
@@ -257,7 +258,8 @@ function renderMypage(){
     + '<div class="school">鹿児島工学院専門学校　' + (parent ? '保護者マイページ' : '学生マイページ') + '</div>'
     + '<div class="who">' + esc(p.氏名) + (parent ? '<small>さん</small>' : '') + '</div>'
     + '<div class="meta">' + esc(p.学科) + '　' + esc(p.学年) + '年　担任：' + esc(p.担任) + '</div>'
-    + '<div class="asof">' + esc(d.asOf) + '</div>' + tabs + '</div></header>';
+    + '<div class="asof">' + esc(d.asOf) + '</div>'
+    + '<div class="upd">この画面の内容は、毎日1回（19:30ごろ）更新されます。</div>' + tabs + '</div></header>';
 
   const a = p.出欠;
   const stats = '<div class="stats">'
