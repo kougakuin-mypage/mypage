@@ -160,6 +160,7 @@
   .dosei{font-size:13.5px;color:var(--sub);background:var(--bg);border-radius:10px;padding:6px 12px}
   a.back{display:inline-block;color:var(--onhead,#fff);font-size:14px;font-weight:700;text-decoration:none;background:var(--headchip,rgba(255,255,255,.18));border-radius:999px;padding:4px 12px;margin-bottom:8px}
   .booked-box{background:var(--navy-soft);color:var(--navy);font-weight:700;font-size:14px;border-radius:10px;padding:8px 12px;margin-bottom:8px}
+  .cls{font-size:13px;font-weight:700;color:var(--navy);background:var(--navy-soft);border-radius:8px;padding:3px 10px;margin:10px 0 2px;display:inline-block}
   .s.booked{color:var(--navy);font-weight:700}
   button.mini{font:inherit;font-size:12.5px;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:8px;padding:4px 8px;margin-left:6px;flex:0 0 auto}
   button.mini.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
@@ -544,11 +545,21 @@ async function cancelBooking(id){
 function teacherBookings(){
   const y = state.data.teacher.予約;
   if (!y) return { next: '<div class="empty">読み込めませんでした。</div>', wait: '' };
-  const li = (b, btn) => '<li><span class="date">' + esc(b.日付) + '</span><span class="body">' + esc(b.氏名) + '<div class="s">' + esc(b.枠) + '</div>' + (b.残り ? '<div class="s">残りの補習：' + esc(b.残り) + '</div>' : '') + '</span>' + (btn || '<span class="tag ' + (b.状態 === '確定' ? 't-済' : 't-確認中') + '">' + STATE_LABEL[b.状態] + '</span>') + '</li>';
-  const next = y.次の日の予約.length ? '<ul class="list">' + y.次の日の予約.map(b => li(b)).join('') + '</ul>' : '<div class="empty">' + esc(y.次の日) + 'の補習の予約はありません。</div>';
-  const wait = y.承認待ち.length ? '<ul class="list">' + y.承認待ち.map(b => li(b, '<span class="ap"><button class="mini on" onclick="approve(\'' + esc(b.id) + '\',true)">承認</button><button class="mini" onclick="approve(\'' + esc(b.id) + '\',false)">しない</button></span>')).join('') + '</ul>' : '<div class="empty">承認待ちの予約はありません。</div>';
+  // 11/18：「残りの補習：法規1・構造2」は紛らわしいので出さない
+  const li = (b, btn) => '<li><span class="date">' + esc(b.日付) + '</span><span class="body">' + esc(b.氏名) + '<div class="s">' + esc(b.枠) + '</div>'
+    + (b.状態 === '確定' && b.処理した先生 ? '<div class="s">承認：' + esc(b.処理した先生) + '</div>' : '') + '</span>'
+    + (btn || '<span class="tag ' + (b.状態 === '確定' ? 't-済' : 't-確認中') + '">' + STATE_LABEL[b.状態] + '</span>') + '</li>';
+  // 11/18：クラス（1年・2年・専攻科）ごとにまとめる
+  const byClass = (list, f) => {
+    const g = {}; list.forEach(b => { const k = b.クラス || 'その他'; (g[k] = g[k] || { 並び: b.並び || 5, list: [] }).list.push(b); });
+    return Object.keys(g).sort((a, c) => g[a].並び - g[c].並び || (a < c ? -1 : 1))
+      .map(k => '<div class="cls">' + esc(clsLabel(k)) + '（' + g[k].list.length + '件）</div><ul class="list">' + g[k].list.map(f).join('') + '</ul>').join('');
+  };
+  const next = y.次の日の予約.length ? byClass(y.次の日の予約, b => li(b)) : '<div class="empty">' + esc(y.次の日) + 'の補習の予約はありません。</div>';
+  const wait = y.承認待ち.length ? byClass(y.承認待ち, b => li(b, !b.押せる ? '<span class="tag t-確認中">担任が確認</span>' : '<span class="ap"><button class="mini on" onclick="approve(\'' + esc(b.id) + '\',true)">承認</button><button class="mini" onclick="approve(\'' + esc(b.id) + '\',false)">しない</button></span>')) : '<div class="empty">承認待ちの予約はありません。</div>';
   return { next, wait, title: y.次の日 + 'の補習の予約' };
 }
+function clsLabel(c){ c = String(c); if (/専攻|養成/.test(c)) return c; const m = c.match(/\d/); return m ? m[0] + '年（' + c + '）' : c; }
 async function approve(id, yes){
   try{
     const r = await api('approve', { id, yes });
@@ -566,7 +577,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版28' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版31' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
