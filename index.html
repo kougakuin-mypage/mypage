@@ -15,7 +15,16 @@
     --green:#2f855a; --green-soft:#e6f4ec;
   }
   /* 11/18：学生のページは緑系にして、保護者のページ（紺）と見分けられるようにする */
-  body[data-mode="student"]{--navy:#2e7d32;--navy-2:#388e3c;--navy-soft:#e6f2e7}
+  /* 11/18：学生のページは学科のイメージカラー（建築＝緑・電気＝黄・自動車＝青・ライフデザイン＝紫）。保護者のページは紺のまま */
+  body[data-mode="student"][data-dept="建築"]{--navy:#2e7d32;--navy-2:#388e3c;--navy-soft:#e6f2e7}
+  body[data-mode="student"][data-dept="電気"]{--navy:#8a6a00;--navy-2:#a37f00;--navy-soft:#fdf4d3;--head:#f2c230;--onhead:#3a2e00;--headchip:rgba(0,0,0,.08);--headline:rgba(0,0,0,.25)}
+  body[data-mode="student"][data-dept="自動車"]{--navy:#1565c0;--navy-2:#1e78d6;--navy-soft:#e3eefb}
+  body[data-mode="student"][data-dept="ライフデザイン"]{--navy:#6a3d9a;--navy-2:#7b4bb0;--navy-soft:#efe7f8}
+  details.done{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+  details.done summary{cursor:pointer;font-size:14px;color:var(--sub);list-style:none;padding:4px 0}
+  details.done summary::before{content:'▸ ';}
+  details.done[open] summary::before{content:'▾ ';}
+  details.done summary::-webkit-details-marker{display:none}
   .warn-box{margin-top:10px;background:var(--amber-soft);color:#8a5a12;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:500}
   *{box-sizing:border-box}
   .note,.notice p,.card>div{word-break:auto-phrase;text-wrap:pretty}
@@ -27,7 +36,7 @@
   }
   .wrap{max-width:520px;margin:0 auto;padding:0 16px 40px}
   header.top{
-    background:var(--navy); color:#fff; padding:18px 16px 22px;
+    background:var(--head, var(--navy)); color:var(--onhead, #fff); padding:18px 16px 22px;
   }
   header.top .in{max-width:520px;margin:0 auto}
   .school{font-size:13px;opacity:.85;letter-spacing:.04em}
@@ -35,13 +44,13 @@
   .who small{font-size:14px;font-weight:500;opacity:.9;margin-left:6px}
   .meta{font-size:13px;opacity:.9;margin-top:2px}
   .asof{
-    display:inline-block;margin-top:10px;background:rgba(255,255,255,.14);
+    display:inline-block;margin-top:10px;background:var(--headchip, rgba(255,255,255,.14));
     border-radius:999px;padding:3px 12px;font-size:12.5px
   }
   .upd{font-size:12px;opacity:.8;margin-top:6px}
   .tabs{display:flex;gap:8px;overflow-x:auto;margin:14px 0 0;padding-bottom:2px}
   .tabs button{
-    flex:0 0 auto;border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;
+    flex:0 0 auto;border:1px solid var(--headline, rgba(255,255,255,.4));background:transparent;color:inherit;
     border-radius:999px;padding:6px 14px;font:inherit;font-size:14px
   }
   .tabs button[aria-selected="true"]{background:#fff;color:var(--navy);border-color:#fff;font-weight:700}
@@ -259,6 +268,8 @@ function card(icon, title, inner, cls){
 function renderMypage(){
   const d = state.data, p = d.people[state.idx], parent = p.種別 === '保護者';
   document.body.dataset.mode = parent ? 'parent' : 'student';
+  const dg = String(p.学科 || '');
+  document.body.dataset.dept = /電気/.test(dg) ? '電気' : /自動車/.test(dg) ? '自動車' : /ライフ/.test(dg) ? 'ライフデザイン' : '建築';
   const tabs = d.people.length > 1
     ? '<div class="tabs">' + d.people.map((x,i) => '<button aria-selected="' + (i===state.idx) + '" onclick="state.idx=' + i + ';renderMypage()">' + esc(x.氏名.replace(/（.*?）/,'')) + '</button>').join('') + '</div>'
     : '';
@@ -292,12 +303,18 @@ function renderMypage(){
       ? '<div class="big"><span class="n">' + p.補習残りコマ + '</span><span class="u">コマ　残っています</span></div><div class="note">補習の日程は、担任から学生本人に伝えています。</div>'
       : '<div class="done-ok">残っている補習はありません。</div>';
   }else{
+    // 11/18：済んだ補習は「済みの補習」に畳み、押すと開く。補習をした日も出す
+    const open = p.補習.filter(r => r.状態 !== '済'), done = p.補習.filter(r => r.状態 === '済');
+    const when = r => (r.実施日 && r.実施日.length) ? r.実施日.join('・') + 'に補習' : '';
+    const row = r => '<li><span class="date">' + esc(r.授業日) + '</span><span class="body">' + esc(r.科目) + '　' + r.コマ + 'コマ'
+      + (r.状態 === '済'
+          ? (when(r) ? '<div class="s">' + esc(when(r)) + '</div>' : '')
+          : '<div class="s">期限 ' + esc(r.期限) + (r.済みコマ ? '・' + r.済みコマ + 'コマ済み（' + esc(when(r)) + '）' : '') + '</div>')
+      + '</span><span class="tag t-' + esc(r.状態) + '">' + (r.状態 === '済' ? '済み' : 'まだ') + '</span></li>';
     hoshu = p.補習.length
       ? '<div class="big" style="margin-bottom:8px"><span class="n">' + p.補習残りコマ + '</span><span class="u">コマ　残り</span></div>'
-        + '<ul class="list">' + p.補習.map(r =>
-          '<li><span class="date">' + esc(r.授業日) + '</span><span class="body">' + esc(r.科目) + '　' + r.コマ + 'コマ'
-          + (r.状態 === '済' ? '' : '<div class="s">期限 ' + esc(r.期限) + '</div>') + '</span>'
-          + '<span class="tag t-' + esc(r.状態) + '">' + (r.状態 === '済' ? '済み' : 'まだ') + '</span></li>').join('') + '</ul>'
+        + (open.length ? '<ul class="list">' + open.map(row).join('') + '</ul>' : '<div class="done-ok">残っている補習はありません。</div>')
+        + (done.length ? '<details class="done"><summary>済みの補習（' + done.length + '件）</summary><ul class="list">' + done.map(row).join('') + '</ul></details>' : '')
       : '<div class="done-ok">補習はありません。</div>';
   }
 
@@ -337,7 +354,7 @@ function renderMypage(){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版12' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版14' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
