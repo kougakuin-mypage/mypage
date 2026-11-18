@@ -158,6 +158,7 @@
   button.two[aria-pressed="true"]{background:var(--navy);color:#fff;font-weight:700}
   button.two:disabled{opacity:.6}
   .dosei{font-size:13.5px;color:var(--sub);background:var(--bg);border-radius:10px;padding:6px 12px}
+  a.back{display:inline-block;color:var(--onhead,#fff);font-size:14px;font-weight:700;text-decoration:none;background:var(--headchip,rgba(255,255,255,.18));border-radius:999px;padding:4px 12px;margin-bottom:8px}
   .s.booked{color:var(--navy);font-weight:700}
   button.mini{font:inherit;font-size:12.5px;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:8px;padding:4px 8px;margin-left:6px;flex:0 0 auto}
   button.mini.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
@@ -480,7 +481,8 @@ function bookedFor(r){
 function slotLabel(t){ const m = String(t).match(/^(.*?)（(.*)）$/); return m ? esc(m[1]) + '<br><small>' + esc(m[2]) + '</small>' : esc(t); }
 function renderBooking(){
   const d = state.data, p = curPerson(), y = p.予約;
-  const head = '<header class="top"><div class="in"><div class="school">鹿児島工学院専門学校　マイページ（学生）</div>'
+  // 11/18：もどるボタンを上にも付けた（以前は一番下だけ）
+  const head = '<header class="top"><div class="in"><a class="back" href="#" onclick="renderMypage();return false;">‹ マイページにもどる</a><div class="school">鹿児島工学院専門学校　マイページ（学生）</div>'
     + '<div class="who">補習の予約</div><div class="meta">' + esc(p.氏名) + 'さん</div></div></header>';
   const mine = y.一覧.length
     ? '<ul class="list">' + y.一覧.map(b => '<li><span class="date">' + esc(b.日付) + '</span><span class="body">' + esc(b.枠.replace(/（.*$/, '')) + '<div class="s">' + esc(b.科目) + '（' + esc(b.補習の授業日.replace(/（.*$/, '')) + 'の分）</div></span>'
@@ -565,7 +567,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版26' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版27' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
