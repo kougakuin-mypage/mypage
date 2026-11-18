@@ -492,7 +492,7 @@ function renderBooking(){
     : '<div class="empty">予約している補習はありません。</div>';
   const pick = state.pick;
   const days = y.日.map((x, di) => '<li class="bday"><div class="bd"><b>' + esc(x.表示) + '</b>'
-      + (x.締め切り後 ? '<span class="late">締め切り後のため承認待ちになります</span>' : '') + '</div><div class="slots">'
+      + '</div><div class="slots">'
       + x.枠.map((w, wi) => {
           if (w.予約) return '<span class="slot mine">' + esc(w.表示.replace(/（.*$/, '')) + '<br><small>' + STATE_LABEL[w.予約.状態] + '</small></span>';
           if (w.理由) return '<span class="slot off">' + esc(w.表示.replace(/（.*$/, '')) + '<br><small>' + esc(w.理由) + '</small></span>';
@@ -501,7 +501,7 @@ function renderBooking(){
         }).join('') + '</div>'
       + (pick && pick.di === di ? choosePanel(x, x.枠[pick.wi]) : '') + '</li>').join('');
   const can = (y.予約できる数 > 0 || y.一覧.length)
-    ? '<div class="note" style="margin-top:0;margin-bottom:10px">前の授業日の17:00までの予約は、その場で決まります。それより後は承認待ちです（担任に確認してください）。取り消しも同じ締め切りまで。'
+    ? '<div class="note" style="margin-top:0;margin-bottom:10px">朝補習・放課後1コマ目は、その場で決まります。<b>放課後2コマ目は、先生の承認待ち</b>になります。取り消しは前の授業日の17:00まで。'
       + (y.承認制 ? '<br><b>「来なかった」が' + y.来なかった + '回になったため、予約はすべて承認待ちになります。</b>' : '') + '</div><ul class="list">' + days + '</ul>'
     : '<div class="empty">予約できる補習は残っていません。</div>';
   const left = '<div class="note" style="margin-top:0">補習の残り：<b>' + y.残り + 'コマ</b>（あと<b>' + y.予約できる数 + 'コマ</b>予約できます）。どの補習を消化するかは、当日先生が決めます。</div>';
@@ -513,7 +513,7 @@ function renderBooking(){
 function choosePanel(day, w){
   return '<div class="choose"><button class="btn" style="padding:11px" onclick="book(\'' + esc(day.日付) + '\',\'' + esc(w.枠) + '\')">'
     + 'この時間で予約する</button>'
-    + (day.締め切り後 ? '<div class="s" style="margin-top:6px;color:var(--amber)">締め切り後なので承認待ちになります（担任に確認してください）</div>' : '') + '</div>';
+    + (w.枠 === '放課後2' ? '<div class="s" style="margin-top:6px;color:var(--amber)">2コマ目は、先生が承認したら決まります</div>' : '') + '</div>';
 }
 function pickSlot(di, wi){
   const y = window.scrollY;
@@ -577,7 +577,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版31' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版33' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
