@@ -158,6 +158,20 @@
   button.two[aria-pressed="true"]{background:var(--navy);color:#fff;font-weight:700}
   button.two:disabled{opacity:.6}
   .dosei{font-size:13.5px;color:var(--sub);background:var(--bg);border-radius:10px;padding:6px 12px}
+  .s.booked{color:var(--navy);font-weight:700}
+  button.mini{font:inherit;font-size:12.5px;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:8px;padding:4px 8px;margin-left:6px;flex:0 0 auto}
+  button.mini.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
+  .ap{display:flex;flex:0 0 auto}
+  ul.list li.bday{display:block}
+  .bday .bd{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin-bottom:6px}
+  .bday .late{font-size:12px;color:var(--amber)}
+  .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .slot{font:inherit;font-size:12.5px;line-height:1.35;border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:10px;padding:8px 4px;text-align:center}
+  .slot.on{background:var(--navy);color:#fff;font-weight:700}
+  .slot.mine{background:var(--navy-soft);border-color:var(--navy-soft);font-weight:700}
+  .slot.off{border-color:var(--line);color:var(--sub);background:var(--bg)}
+  .slot small{font-size:11px;font-weight:500}
+  .choose{margin-top:8px;background:var(--bg);border-radius:10px;padding:10px}
   .test{background:#fff4d6;color:#7a5a00;font-size:12px;text-align:center;padding:4px}
 </style>
 </head>
@@ -358,11 +372,15 @@ function renderMypage(){
       + (r.状態 === '済'
           ? (when(r) ? '<div class="s">' + esc(when(r)) + '</div>' : '')
           : '<div class="s">期限 ' + esc(r.期限) + '</div>'
-            + (r.済みコマ ? '<div class="s">' + esc((r.実施日 || []).join('・')) + 'に' + r.済みコマ + 'コマ済み（残り' + r.コマ + '）</div>' : ''))
+            + (r.済みコマ ? '<div class="s">' + esc((r.実施日 || []).join('・')) + 'に' + r.済みコマ + 'コマ済み（残り' + r.コマ + '）</div>' : '')
+            + bookedFor(r))
       + '</span><span class="tag t-' + esc(r.状態) + '">' + (r.状態 === '済' ? '済み' : 'まだ') + '</span></li>';
+    const yoyakuBtn = p.予約 && (p.予約.選べる補習.length || p.予約.一覧.length)
+      ? '<button class="btn" style="margin-top:12px" onclick="state.pick=null;renderBooking()">補習を予約する・予約を見る</button>' : '';
     hoshu = p.補習.length
       ? '<div class="big" style="margin-bottom:8px"><span class="n">' + p.補習残りコマ + '</span><span class="u">コマ　残り</span></div>'
         + (open.length ? '<ul class="list">' + open.map(row).join('') + '</ul>' : '<div class="done-ok">残っている補習はありません。</div>')
+        + yoyakuBtn
         + (done.length ? '<details class="done"><summary>済みの補習（' + done.length + '件）</summary><ul class="list">' + done.map(row).join('') + '</ul></details>' : '')
       : '<div class="done-ok">補習はありません。</div>';
   }
@@ -428,11 +446,11 @@ function renderTeacher(){
   // 11/18：説明は1行だけに（以前は1コマ補習・朝補習・上限・土日祝の説明も書いていたが長いので外した）
   const hoshu = '<div class="note" style="margin-top:0;margin-bottom:10px"><b>2コマ補習（〜18:10）まで残れる日だけ</b>押してください。</div>'
     + '<ul class="list">' + rows + '</ul>';
-  const soon = '<div class="empty">補習の予約の仕組みができたら、ここに出ます。</div>';
+  const tb = teacherBookings();
   app.innerHTML = head + '<div class="wrap">'
-    + card('cal', '2コマ補習まで残れる日', hoshu, 'first')
-    + card('list', '明日の補習の予約', soon)
-    + card('book', '承認待ちの予約', soon)
+    + card('list', tb.title || '次の授業日の補習の予約', tb.next, 'first')
+    + card('book', '承認待ちの予約', tb.wait)
+    + card('cal', '2コマ補習まで残れる日', hoshu)
     + footer() + '</div>';
 }
 async function setTwo(i){
@@ -451,6 +469,93 @@ async function setTwo(i){
   }
 }
 
+/* ---------- 補習の予約（学生・11/18） ---------- */
+const STATE_LABEL = { 確定: '予約済み', 承認待ち: '承認待ち' };
+function curPerson(){ return state.data.people[state.idx]; }
+function bookedFor(r){
+  const p = curPerson(); if (!p || !p.予約) return '';
+  const list = p.予約.一覧.filter(b => b.科目 === r.科目 && b.補習の授業日 === r.授業日);
+  return list.map(b => '<div class="s booked">' + (b.状態 === '確定' ? '予約：' : '承認待ち：') + esc(b.日付) + ' ' + esc(b.枠.replace(/（.*$/, '')) + '</div>').join('');
+}
+function slotLabel(t){ const m = String(t).match(/^(.*?)（(.*)）$/); return m ? esc(m[1]) + '<br><small>' + esc(m[2]) + '</small>' : esc(t); }
+function renderBooking(){
+  const d = state.data, p = curPerson(), y = p.予約;
+  const head = '<header class="top"><div class="in"><div class="school">鹿児島工学院専門学校　マイページ（学生）</div>'
+    + '<div class="who">補習の予約</div><div class="meta">' + esc(p.氏名) + 'さん</div></div></header>';
+  const mine = y.一覧.length
+    ? '<ul class="list">' + y.一覧.map(b => '<li><span class="date">' + esc(b.日付) + '</span><span class="body">' + esc(b.枠.replace(/（.*$/, '')) + '<div class="s">' + esc(b.科目) + '（' + esc(b.補習の授業日.replace(/（.*$/, '')) + 'の分）</div></span>'
+        + '<span class="tag ' + (b.状態 === '確定' ? 't-済' : 't-確認中') + '">' + STATE_LABEL[b.状態] + '</span>'
+        + (b.取り消せる ? '<button class="mini" onclick="cancelBooking(\'' + esc(b.id) + '\')">取り消す</button>' : '') + '</li>').join('') + '</ul>'
+    : '<div class="empty">予約している補習はありません。</div>';
+  const pick = state.pick;
+  const days = y.日.map((x, di) => '<li class="bday"><div class="bd"><b>' + esc(x.表示) + '</b>'
+      + (x.締め切り後 ? '<span class="late">締め切り後のため承認待ちになります</span>' : '') + '</div><div class="slots">'
+      + x.枠.map((w, wi) => {
+          if (w.予約) return '<span class="slot mine">' + esc(w.表示.replace(/（.*$/, '')) + '<br><small>' + STATE_LABEL[w.予約.状態] + '：' + esc(w.予約.科目) + '</small></span>';
+          if (w.理由) return '<span class="slot off">' + esc(w.表示.replace(/（.*$/, '')) + '<br><small>' + esc(w.理由) + '</small></span>';
+          const on = pick && pick.di === di && pick.wi === wi;
+          return '<button class="slot' + (on ? ' on' : '') + '" onclick="pickSlot(' + di + ',' + wi + ')">' + slotLabel(w.表示) + '</button>';
+        }).join('') + '</div>'
+      + (pick && pick.di === di ? choosePanel(x, x.枠[pick.wi]) : '') + '</li>').join('');
+  const can = y.選べる補習.length
+    ? '<div class="note" style="margin-top:0;margin-bottom:10px">前の授業日の17:00までの予約は、その場で決まります。それより後は承認待ちです（担任に確認してください）。取り消しも同じ締め切りまで。'
+      + (y.承認制 ? '<br><b>「来なかった」が' + y.来なかった + '回になったため、予約はすべて承認待ちになります。</b>' : '') + '</div><ul class="list">' + days + '</ul>'
+    : '<div class="empty">予約できる補習は残っていません。</div>';
+  app.innerHTML = head + '<div class="wrap">'
+    + card('book', '予約した補習', mine, 'first')
+    + card('cal', '予約できる日', can)
+    + '<a class="link" href="#" onclick="renderMypage();return false;">マイページにもどる</a>' + footer() + '</div>';
+}
+function choosePanel(day, w){
+  const y = curPerson().予約;
+  return '<div class="choose"><div class="s">' + esc(day.表示) + ' ' + esc(w.表示) + '　どの補習にしますか？</div>'
+    + y.選べる補習.map(h => '<button class="btn ghost" style="margin-top:6px;padding:10px" onclick="book(\'' + esc(day.日付) + '\',\'' + esc(w.枠) + '\',\'' + esc(h.キー) + '\')">'
+      + esc(h.科目) + '（' + esc(h.授業日.replace(/（.*$/, '')) + 'の分）<br><small style="font-weight:500">残り' + h.残り + 'コマ' + (h.期限 ? '・期限 ' + esc(h.期限) : '') + '</small></button>').join('')
+    + '</div>';
+}
+function pickSlot(di, wi){
+  const y = window.scrollY;
+  state.pick = (state.pick && state.pick.di === di && state.pick.wi === wi) ? null : { di, wi };
+  renderBooking(); window.scrollTo(0, y);
+}
+async function reloadKeep(fn){
+  const y = window.scrollY;
+  const r = await api('me'); if (!r.ok) throw new Error(r.error);
+  save(r); state.data = r; fn(); window.scrollTo(0, y);
+}
+async function book(date, slot, key){
+  const p = curPerson();
+  app.querySelectorAll('.choose button').forEach(b => b.disabled = true);
+  try{
+    const r = await api('book', { sid: p.学籍番号, date, slot, key });
+    if (!r.ok) throw new Error(r.error);
+    state.pick = null; await reloadKeep(renderBooking); toast(r.message, r.状態 !== '確定' ? false : false);
+  }catch(e){ toast(String(e && e.message ? e.message : e), true); app.querySelectorAll('.choose button').forEach(b => b.disabled = false); }
+}
+async function cancelBooking(id){
+  try{
+    const r = await api('cancel', { id });
+    if (!r.ok) throw new Error(r.error);
+    await reloadKeep(renderBooking); toast(r.message);
+  }catch(e){ toast(String(e && e.message ? e.message : e), true); }
+}
+/* ---------- 先生：予約の一覧と承認（11/18） ---------- */
+function teacherBookings(){
+  const y = state.data.teacher.予約;
+  if (!y) return { next: '<div class="empty">読み込めませんでした。</div>', wait: '' };
+  const li = (b, btn) => '<li><span class="date">' + esc(b.日付) + '</span><span class="body">' + esc(b.氏名) + '<div class="s">' + esc(b.枠) + '・' + esc(b.科目) + '</div></span>' + (btn || '<span class="tag ' + (b.状態 === '確定' ? 't-済' : 't-確認中') + '">' + STATE_LABEL[b.状態] + '</span>') + '</li>';
+  const next = y.次の日の予約.length ? '<ul class="list">' + y.次の日の予約.map(b => li(b)).join('') + '</ul>' : '<div class="empty">' + esc(y.次の日) + 'の補習の予約はありません。</div>';
+  const wait = y.承認待ち.length ? '<ul class="list">' + y.承認待ち.map(b => li(b, '<span class="ap"><button class="mini on" onclick="approve(\'' + esc(b.id) + '\',true)">承認</button><button class="mini" onclick="approve(\'' + esc(b.id) + '\',false)">しない</button></span>')).join('') + '</ul>' : '<div class="empty">承認待ちの予約はありません。</div>';
+  return { next, wait, title: y.次の日 + 'の補習の予約' };
+}
+async function approve(id, yes){
+  try{
+    const r = await api('approve', { id, yes });
+    if (!r.ok) throw new Error(r.error);
+    await reloadKeep(renderTeacher); toast(r.message);
+  }catch(e){ toast(String(e && e.message ? e.message : e), true); }
+}
+
 function toast(text, bad){
   const t = document.createElement('div'); t.className = 'refresh'; t.textContent = text;
   if (bad) t.style.background = '#c8453c';
@@ -460,7 +565,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版25' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版26' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
