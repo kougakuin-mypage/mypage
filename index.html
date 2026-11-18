@@ -69,10 +69,13 @@
   .card h2 .ic svg{width:16px;height:16px}
   .first{margin-top:-14px}
 
-  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .stat{border-radius:12px;padding:10px 6px;text-align:center;background:var(--navy-soft)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .stat{border-radius:12px;padding:10px 2px;text-align:center;background:var(--navy-soft)}
   .stat .k{font-size:13px;color:var(--sub)}
-  .stat .v{font-size:28px;font-weight:700;line-height:1.2;color:var(--navy)}
+  .stat .v{font-size:25px;font-weight:700;line-height:1.2;color:var(--navy)}
+  .stat.pub{background:var(--green-soft)} .stat.pub .v{color:var(--green)}
+  dl.words{margin:10px 0 0;font-size:13px;color:var(--sub);background:var(--bg);border-radius:10px;padding:8px 12px;display:grid;grid-template-columns:auto 1fr;gap:4px 10px}
+  dl.words dt{font-weight:700;color:var(--ink)} dl.words dd{margin:0;word-break:auto-phrase}
   .stat .v span{font-size:13px;font-weight:500;margin-left:2px}
   .stat.warn{background:var(--amber-soft)} .stat.warn .v{color:var(--amber)}
   .note{
@@ -282,14 +285,19 @@ function renderMypage(){
     + '<div class="upd">この画面の内容は、毎日1回（19:30ごろ）更新されます。</div>' + tabs + '</div></header>';
 
   const a = p.出欠;
-  const stats = '<div class="stats">'
+  // 11/18：公欠を分けて出す（以前は 欠席・遅刻・欠課 の3つ）。欠課などの言葉の説明を付け、学生のページにも出す
+  const tiles = '<div class="stats">'
     + '<div class="stat"><div class="k">欠席</div><div class="v">' + a.欠席 + '<span>日</span></div></div>'
+    + '<div class="stat pub"><div class="k">公欠</div><div class="v">' + (a.公欠 || 0) + '<span>日</span></div></div>'
     + '<div class="stat' + (a.遅刻 >= 5 ? ' warn' : '') + '"><div class="k">遅刻</div><div class="v">' + a.遅刻 + '<span>回</span></div></div>'
     + '<div class="stat"><div class="k">欠課</div><div class="v">' + a.欠課 + '<span>コマ</span></div></div></div>'
-    + '<div class="note">' + (parent
-        ? '遅刻が年度内で<b>5回・7回</b>（その後は2回ごと）になった日の19:30ごろに、LINEでお知らせします。'
-        : '遅刻は年度内の合計です。<b>5回・7回</b>（その後は2回ごと）になった日の19:30ごろに、保護者の方にもLINEでお知らせが届きます。')
-    + '</div>';
+    + '<dl class="words">'
+    + '<dt>欠席</dt><dd>病気や私用などで休んだ日</dd>'
+    + '<dt>公欠</dt><dd>就職試験・忌引・感染症による出席停止などで休んだ日（出席扱い）</dd>'
+    + '<dt>欠課</dt><dd>授業を休んだコマ数（1コマ50分）。遅刻・早退した授業も含みます。<b>6コマで欠席1日分</b>として数えます</dd>'
+    + '</dl>';
+  const stats = tiles
+    + '<div class="note">遅刻が年度内で<b>5回・7回</b>（その後は2回ごと）になった日の19:30ごろに、LINEでお知らせします。</div>';
 
   const recent = p.直近.length
     ? '<ul class="list">' + p.直近.map(r =>
@@ -330,8 +338,8 @@ function renderMypage(){
 
   // 11/18：学生のページは、提案資料の形（補習の残り → 今年度の遅刻 → 学校からの緊急連絡）に合わせる
   const n = a.遅刻, next = n < 5 ? 5 : 5 + 2 * (Math.floor((n - 5) / 2) + 1);
-  const lateStu = '<div class="big"><span class="n">' + n + '</span><span class="u">回</span></div>'
-    + '<div class="warn-box">あと' + (next - n) + '回（' + next + '回）になると、保護者にもLINEでお知らせが届きます。</div>'
+  const lateStu = tiles
+    + '<div class="warn-box">遅刻はあと' + (next - n) + '回（' + next + '回）になると、保護者にもLINEでお知らせが届きます。</div>'
     + '<div class="note" style="margin-top:8px">朝のSHR（9:20）に遅れると、遅刻1回に加えて欠課1コマとして数えます。</div>';
   const emergency = '<div style="font-size:15px">現在、緊急の連絡はありません。</div><div class="note">休校などのときは、LINEにも届きます。</div>';
   const body = parent
@@ -341,7 +349,7 @@ function renderMypage(){
       + card('doc', '成績表', grade)
       + card('flag', '行事予定', events)
     : card('book', '補習の残り', hoshu, 'first')
-      + card('cal', '今年度の遅刻', lateStu)
+      + card('cal', '今年度の出欠', lateStu)
       + card('bell', '学校からの緊急連絡', emergency)
       + card('flag', '行事予定', events);
   app.innerHTML = head + '<div class="wrap">' + body
@@ -354,7 +362,7 @@ function renderMypage(){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版14' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版15' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
