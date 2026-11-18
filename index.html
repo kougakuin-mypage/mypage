@@ -371,8 +371,9 @@ function renderMypage(){
       + card('book', '補習の残り', hoshu)
       + card('doc', '成績表', grade)
       + card('flag', '行事予定', events)
-    : card('book', '補習の残り', hoshu, 'first')
-      + card('cal', '今年度の出欠', lateStu)
+    /* 11/18：学生も「今年度の出欠」を一番上に（以前は 補習の残り → 今年度の遅刻 の順） */
+    : card('cal', '今年度の出欠', lateStu, 'first')
+      + card('book', '補習の残り', hoshu)
       /* 11/18：「学校からの緊急連絡」は外した（緊急の連絡は公式LINEで届くため） */
       + card('flag', '行事予定', events);
   app.innerHTML = head + '<div class="wrap">' + body
@@ -385,7 +386,7 @@ function renderMypage(){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版17' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版18' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
