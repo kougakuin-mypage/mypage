@@ -146,6 +146,18 @@
   footer{font-size:12.5px;color:var(--sub);text-align:center;margin-top:24px;line-height:1.8}
   footer a{color:var(--navy)}
   .refresh{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(29,39,51,.85);color:#fff;font-size:12.5px;border-radius:999px;padding:5px 14px;z-index:9}
+  li.kday{flex-wrap:wrap;gap:6px 10px}
+  .seg{display:inline-flex;border:1px solid var(--navy);border-radius:10px;overflow:hidden}
+  .seg button{font:inherit;font-size:13px;border:0;background:#fff;color:var(--navy);padding:6px 7px;min-width:52px}
+  .seg button+button{border-left:1px solid var(--navy)}
+  .seg button[aria-pressed="true"]{background:var(--navy);color:#fff;font-weight:700}
+  .seg button:disabled{opacity:.6}
+  .kday .by{font-size:12px;color:var(--sub);flex-basis:100%;padding-left:88px;margin-top:-4px}
+  .kday .by.none{color:var(--red)}
+  button.two{font:inherit;font-size:14px;border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:10px;padding:6px 14px}
+  button.two[aria-pressed="true"]{background:var(--navy);color:#fff;font-weight:700}
+  button.two:disabled{opacity:.6}
+  .dosei{font-size:13.5px;color:var(--sub);background:var(--bg);border-radius:10px;padding:6px 12px}
   .test{background:#fff4d6;color:#7a5a00;font-size:12px;text-align:center;padding:4px}
 </style>
 </head>
@@ -205,7 +217,7 @@ async function load(){
   const saved = readSaved();
   let badge = null;
   if(saved && saved.registered){
-    state.data = saved; state.idx = Math.min(state.idx, saved.people.length - 1);
+    state.data = saved; state.idx = Math.min(state.idx, pages(saved) - 1);
     renderMypage();
     badge = document.createElement('div'); badge.className = 'refresh'; badge.textContent = '最新の内容に更新しています…';
     document.body.appendChild(badge);
@@ -220,7 +232,7 @@ async function load(){
     if(!r.registered){ save(null); return renderRegister(); }
     save(r);
     const y = window.scrollY;
-    state.data = r; state.idx = Math.min(state.idx, r.people.length - 1);
+    state.data = r; state.idx = Math.min(state.idx, pages(r) - 1);
     renderMypage();
     if(saved) window.scrollTo(0, y);
   }catch(e){
@@ -245,7 +257,7 @@ function renderRegister(add){
     + '<input id="code" class="code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" placeholder="XXXX-XXXX" maxlength="12">'
     + '<div id="msg"></div>'
     + '<button id="go" class="btn" style="margin-top:14px">登録する</button>'
-    + '<ul class="steps"><li>保護者用と学生用で、コードが分かれています。</li><li>保護者の方は、1人の学生につき2名まで登録できます。</li></ul>'
+    + '<ul class="steps"><li>保護者用・学生用・先生用で、コードが分かれています。</li><li>保護者の方は、1人の学生につき2名まで登録できます。</li></ul>'
     + '</div>'
     + (add ? '<a class="link" href="#" onclick="renderMypage();return false;">マイページにもどる</a>' : '')
     + footer() + '</div>';
@@ -271,14 +283,20 @@ function card(icon, title, inner, cls){
   return '<section class="card ' + (cls||'') + '"><h2><span class="ic">' + ICON[icon] + '</span>' + esc(title) + '</h2>' + inner + '</section>';
 }
 
+// 11/18：先生として登録している人は、学生・保護者のタブの後ろに「先生用」のタブが付く（先生だけなら先生用の画面だけ）
+function pages(d){ return (d.people || []).length + (d.teacher ? 1 : 0); }
+function tabsHtml(d){
+  if (pages(d) < 2) return '';
+  const b = (i, label) => '<button aria-selected="' + (i===state.idx) + '" onclick="state.idx=' + i + ';renderMypage()">' + esc(label) + '</button>';
+  return '<div class="tabs">' + d.people.map((x,i) => b(i, x.氏名.replace(/（.*?）/,''))).join('') + (d.teacher ? b(d.people.length, '先生用') : '') + '</div>';
+}
 function renderMypage(){
+  if (state.idx >= state.data.people.length) return renderTeacher();
   const d = state.data, p = d.people[state.idx], parent = p.種別 === '保護者';
   document.body.dataset.mode = parent ? 'parent' : 'student';
   const dg = String(p.学科 || '');
   document.body.dataset.dept = /電気/.test(dg) ? '電気' : /自動車/.test(dg) ? '自動車' : /ライフ/.test(dg) ? 'ライフデザイン' : '建築';
-  const tabs = d.people.length > 1
-    ? '<div class="tabs">' + d.people.map((x,i) => '<button aria-selected="' + (i===state.idx) + '" onclick="state.idx=' + i + ';renderMypage()">' + esc(x.氏名.replace(/（.*?）/,'')) + '</button>').join('') + '</div>'
-    : '';
+  const tabs = tabsHtml(d);
 
   const head = '<header class="top"><div class="in">'
     + '<div class="school">鹿児島工学院専門学校　' + (parent ? '保護者マイページ' : 'マイページ（学生）') + '</div>'
@@ -388,10 +406,62 @@ function renderMypage(){
   window.scrollTo(0,0);
 }
 
+/* ---------- 先生用の画面（11/18） ----------
+ * 放課後1コマ補習は建築の先生が誰かいれば必ずできるので、入れるのは「この日は2コマ補習まで残れる」だけ。
+ * 休み・別勤の日は押さなければよいだけ（動静カレンダーは読まない）。
+ * （経過：「2コマ可／1コマまで／なし」→「残れない／1コマまで／2コマまで」→ この形） */
+function dayStatus(x){
+  if (x.その日 === 2) return '<span class="by">この日：2コマ補習まで可（' + esc(x.二コマの先生.join('・')) + '）</span>';
+  return '<span class="by">この日：1コマ補習まで</span>';
+}
+function renderTeacher(){
+  const d = state.data, t = d.teacher;
+  document.body.dataset.mode = 'teacher';
+  const head = '<header class="top"><div class="in">'
+    + '<div class="school">鹿児島工学院専門学校　先生用</div>'
+    + '<div class="who">' + esc(t.氏名) + '<small>先生</small></div>'
+    + '<div class="meta">' + esc(t.学科) + '</div>' + tabsHtml(d) + '</div></header>';
+  const rows = t.放課後.map((x, i) =>
+    '<li class="kday"><span class="date">' + esc(x.表示) + '</span>'
+    + '<button class="two" aria-pressed="' + x.二コマ + '" onclick="setTwo(' + i + ')">' + (x.二コマ ? '✓ 2コマ残れる' : '2コマ残れる') + '</button>'
+    + dayStatus(x) + '</li>').join('');
+  const hoshu = '<div class="note" style="margin-top:0;margin-bottom:10px">放課後1コマ補習は、建築の先生が誰かいれば必ずできるので、入れなくて大丈夫です。'
+    + '<b>2コマ補習（〜18:10）まで残れる日だけ</b>、「2コマ残れる」を押してください（もう一度押すと取り消し）。'
+    + '<br>朝補習（8:30〜9:20）はいつでもできます。1日の補習は、朝と放課後を合わせて<b>' + t.上限 + 'コマまで</b>です。土日・祝日は出していません。</div>'
+    + '<ul class="list">' + rows + '</ul>';
+  const soon = '<div class="empty">補習の予約の仕組みができたら、ここに出ます。</div>';
+  app.innerHTML = head + '<div class="wrap">'
+    + card('cal', '2コマ補習まで残れる日', hoshu, 'first')
+    + card('list', '明日の補習の予約', soon)
+    + card('book', '承認待ちの予約', soon)
+    + footer() + '</div>';
+}
+async function setTwo(i){
+  const t = state.data.teacher, x = t.放課後[i], want = !x.二コマ;
+  const btn = app.querySelectorAll('li.kday')[i].querySelector('button.two');
+  btn.disabled = true; btn.setAttribute('aria-pressed', String(want)); btn.textContent = want ? '✓ 2コマ残れる' : '2コマ残れる';
+  try{
+    const r = await api('hoshu_day', { date: x.日付, koma: want ? 2 : 1 });
+    if (!r.ok) throw new Error(r.error);
+    x.二コマ = r.二コマ; x.その日 = r.その日; x.二コマの先生 = r.二コマの先生; save(state.data);
+    const y = window.scrollY; renderTeacher(); window.scrollTo(0, y);
+    toast(x.表示 + (want ? '：2コマ残れる' : '：取り消しました'));
+  }catch(e){
+    btn.disabled = false; btn.setAttribute('aria-pressed', String(!want)); btn.textContent = !want ? '✓ 2コマ残れる' : '2コマ残れる';
+    toast('入れられませんでした：' + (e && e.message ? e.message : e), true);
+  }
+}
+
+function toast(text, bad){
+  const t = document.createElement('div'); t.className = 'refresh'; t.textContent = text;
+  if (bad) t.style.background = '#c8453c';
+  document.body.appendChild(t); setTimeout(() => t.remove(), bad ? 5000 : 2200);
+}
+
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版19' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版24' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
