@@ -166,6 +166,13 @@
   .plan.good{background:var(--green-soft);color:var(--green)}
   .plan.warn{background:var(--amber-soft);color:#8a5a12}
   .plan.bad{background:var(--red-soft);color:var(--red);font-weight:700}
+  .slot.full{border-color:var(--line);color:var(--sub);background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 6px,#e4e8ee 6px,#e4e8ee 12px)}
+  .form label{display:block;font-size:14px;margin-top:10px}
+  .form input,.form select{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);max-width:100%}
+  .form label>input{display:block;width:100%;margin-top:4px}
+  .row2{display:flex;align-items:center;gap:6px;margin-top:4px}.row2 input{flex:1;min-width:0}
+  .band{display:flex;align-items:center;gap:6px;margin-top:6px}.band .b_name{width:64px}.band input[type=time]{flex:1;min-width:0}
+  .chks{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px}.chk{font-size:14px;display:flex;align-items:center;gap:4px;margin:0}
   .s.booked{color:var(--navy);font-weight:700}
   button.mini{font:inherit;font-size:12.5px;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:8px;padding:4px 8px;margin-left:6px;flex:0 0 auto}
   button.mini.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
@@ -414,8 +421,10 @@ function renderMypage(){
   const on = k => 公[k] !== false;
   const soon = '<div class="empty">準備中です。公開まで、もうしばらくお待ちください。</div>';
   const pick = (k, html) => on(k) ? html : soon;
+  // 11/18：三者面談の予約（案内が届いたクラスだけ）。保護者は一番上に出す
+  const mendan = p.面談 ? card('flag', '三者面談', mendanParent(p)) : '';
   const body = parent
-    ? card('cal', '今年度の出欠', pick('出欠', stats), 'first')
+    ? (mendan ? mendan.replace('class="card ', 'class="card first ') : '') + card('cal', '今年度の出欠', pick('出欠', stats), mendan ? '' : 'first')
       + (on('直近の記録') ? card('list', '直近2週間の記録', recent) : '')
       + card('book', '補習の残り', pick('補習', hoshu))
       + card('doc', '成績表', pick('成績表', grade))
@@ -423,6 +432,7 @@ function renderMypage(){
     /* 11/18：学生も「今年度の出欠」を一番上に（以前は 補習の残り → 今年度の遅刻 の順） */
     : card('cal', '今年度の出欠', pick('出欠', lateStu), 'first')
       + card('book', '補習の残り', pick('補習', hoshu))
+      + mendan
       /* 11/18：「学校からの緊急連絡」は外した（緊急の連絡は公式LINEで届くため） */
       + card('flag', '行事予定', pick('行事予定', events));
   app.innerHTML = head + '<div class="wrap">' + body
@@ -458,6 +468,7 @@ function renderTeacher(){
   app.innerHTML = head + '<div class="wrap">'
     + card('list', tb.title || '次の授業日の補習の予約', tb.next, 'first')
     + card('book', '承認待ちの予約', tb.wait)
+    + card('flag', '三者面談', mendanTeacher(t.面談))
     + card('cal', '2コマ補習まで残れる日', hoshu)
     + footer() + '</div>';
 }
@@ -587,6 +598,103 @@ async function approve(id, yes){
   }catch(e){ toast(String(e && e.message ? e.message : e), true); }
 }
 
+/* ---------- 三者面談（11/18） ---------- */
+function mendanParent(p){
+  const m = p.面談;
+  let h = '<div class="note" style="margin-top:0">期間：<b>' + esc(m.期間) + '</b><br>予約の締め切り：<b>' + esc(m.締め切り) + '</b>（締め切りまではここで変更できます）</div>';
+  h += m.予約 ? '<div class="plan good">予約：<b>' + esc(m.予約) + '</b></div>' : (m.学生 ? '<div class="plan warn">まだ予約されていません（保護者の方が予約します）。</div>' : '<div class="plan warn">まだ予約されていません。下から日時を選んでください。</div>');
+  if (m.学生) return h;
+  if (m.締め切り後) return h + '<div class="note">予約の締め切りを過ぎました。変更は学校（<a href="tel:' + TEL + '">' + TEL + '</a>）へお電話ください。</div>';
+  if (m.予約) h += '<button class="btn ghost" style="margin-top:10px;padding:10px" onclick="mendanCancel(\'' + esc(p.学籍番号) + '\')">予約を取り消す</button>';
+  h += '<div class="s" style="margin:12px 0 4px;font-weight:700">' + (m.予約 ? '日時を変える' : '日時を選ぶ') + '</div>';
+  h += (m.日 || []).length ? '<ul class="list">' + m.日.map(d => '<li class="bday"><div class="bd"><b>' + esc(d.表示) + '</b></div><div class="slots">'
+      + d.枠.map(w => w.自分 ? '<span class="slot mine">' + esc(w.表示.replace(/（.*$/, '')) + '<br><small>予約中</small></span>'
+        : w.満 ? '<span class="slot full">' + esc(w.表示.replace(/（.*$/, '')) + '<br><small>予約済み</small></span>'
+        : '<button class="slot" onclick="mendanBook(\'' + esc(p.学籍番号) + '\',\'' + esc(d.日付) + '\',\'' + esc(w.id) + '\',this)">' + esc(w.表示.replace(/（.*$/, '')) + '</button>').join('') + '</div></li>').join('') + '</ul>'
+    : '<div class="empty">選べる日時が残っていません。学校へお電話ください。</div>';
+  return h;
+}
+async function mendanBook(sid, date, slot, btn){
+  if (btn.dataset.sure !== '1') { app.querySelectorAll('.slot[data-sure="1"]').forEach(b => { b.dataset.sure = ''; b.classList.remove('on'); }); btn.dataset.sure = '1'; btn.classList.add('on'); toast('もう一度押すと、この日時で予約します'); return; }
+  btn.disabled = true;
+  try { const r = await api('mendan_book', { sid, date, slot }); if (!r.ok) throw new Error(r.error); await reloadKeep(renderMypage); toast(r.message); }
+  catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
+}
+async function mendanCancel(sid){
+  try { const r = await api('mendan_cancel', { sid }); if (!r.ok) throw new Error(r.error); await reloadKeep(renderMypage); toast(r.message); }
+  catch(e){ toast(String(e && e.message ? e.message : e), true); }
+}
+function mendanTeacher(m){
+  if (!m) return '<div class="empty">読み込めませんでした。</div>';
+  if (m.エラー) return '<div class="err">' + esc(m.エラー) + '</div>';
+  let h = '';
+  const st = m.設定;
+  if (st) h += '<div class="note" style="margin-top:0">期間：<b>' + esc(st.始め) + '〜' + esc(st.終わり) + '</b>　締め切り：<b>' + esc(st.締め切り表示) + '</b><br>面談' + st.長さ + '分・間の準備' + st.準備 + '分　対象：' + esc(st.対象.join('・') || 'なし') + '</div>';
+  else h += '<div class="note" style="margin-top:0">まだ今年度の設定がありません。' + (m.設定できる ? '下の「設定」から入れてください。' : '科長が設定します。') + '</div>';
+  if (m.設定できる) h += mendanSettingForm(m);
+  (m.クラス || []).forEach((c, ci) => {
+    h += '<div class="cls" style="margin-top:14px">' + esc(c.クラス) + '：予約 ' + c.予約数 + '/' + c.対象数 + '人</div>'
+      + '<div style="margin-top:6px;font-size:13.5px">同じ時間に面談する場所の数 <select onchange="mendanRooms(\'' + esc(c.クラス) + '\',this.value,this)">' + [1, 2, 3, 4].map(n => '<option' + (c.部屋 === n ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>か所<span style="color:var(--sub)">（副担任と分けるときなど）</span></div>'
+      + '<div style="margin:4px 0 8px;font-size:13px;color:var(--sub)">NGの日・時間を押して外してください（もう一度押すと戻ります）。' + (c.案内 ? '<br>保護者への案内：' + esc(c.案内) + ' に送りました' : '') + '</div>';
+    h += '<ul class="list">' + c.日.map((d, di) => '<li class="bday"><div class="bd"><b>' + esc(d.表示) + '</b><button class="mini' + (d.終日NG ? ' on' : '') + '" onclick="mendanNg(\'' + esc(c.クラス) + '\',\'' + esc(d.日付) + '\',\'*\',this)">' + (d.終日NG ? 'この日はNG' : 'この日を全部NG') + '</button></div>'
+      + (d.終日NG ? '' : '<div class="slots">' + d.枠.map(w => w.満 ? '<span class="slot mine">' + esc(w.表示.replace(/（.*$/, '')) + '<br><small>' + esc(w.予約.join('・')) + '</small></span>'
+          : '<button class="slot' + (w.NG ? ' off' : '') + '" onclick="mendanNg(\'' + esc(c.クラス) + '\',\'' + esc(d.日付) + '\',\'' + esc(w.id) + '\',this)">' + esc(w.表示.replace(/（.*$/, '')) + '<br><small>' + (w.NG ? 'NG' : w.予約.length ? esc(w.予約.join('・')) + '（あと' + (c.部屋 - w.予約.length) + '）' : '') + '</small></button>').join('') + '</div>') + '</li>').join('') + '</ul>';
+    h += '<button class="btn" style="margin-top:10px" onclick="mendanSend(\'' + esc(c.クラス) + '\',this)">' + (c.案内 ? '保護者にもう一度案内を送る' : '保護者に案内を送る') + '</button>';
+    // 11/18：名簿で学生ごとに「面談あり／なし」（卒業する学生などを外す）。案内は「あり」の保護者だけに届く
+    h += '<details class="done" open><summary>名簿（面談あり／なし・予約の状況）</summary><div style="margin-top:6px;font-size:13px;color:var(--sub)">面談のない学生（卒業する学生など）は「なし」にしてください。</div><ul class="list">'
+      + c.名簿.map(x => '<li><span class="body"' + (x.対象 ? '' : ' style="color:var(--sub);text-decoration:line-through"') + '>' + esc(x.氏名) + (x.対象 && x.予約 ? '<div class="s">' + esc(x.予約.replace(/（[^）]*）$/, '')) + '</div>' : '') + '</span>'
+        + (x.対象 && !x.予約 ? '<span class="tag t-未">まだ</span>' : '')
+        + '<button class="mini' + (x.対象 ? ' on' : '') + '" onclick="mendanTarget(\'' + esc(c.クラス) + '\',\'' + esc(x.sid) + '\',this)">' + (x.対象 ? '面談あり' : 'なし') + '</button></li>').join('') + '</ul></details>';
+  });
+  if (st && !(m.クラス || []).length) h += '<div class="empty" style="margin-top:10px">担任をしている対象のクラスはありません。</div>';
+  return h;
+}
+function mendanSettingForm(m){
+  const st = m.設定 || {}, 帯 = (st.時間帯 && st.時間帯.length) ? st.時間帯 : m.初期の時間帯;
+  const opt = (vals, cur) => vals.map(v => '<option value="' + v + '"' + (Number(cur) === v ? ' selected' : '') + '>' + v + '分</option>').join('');
+  return '<details class="done" ' + (m.設定 ? '' : 'open') + '><summary>設定（科長）</summary><div class="form" id="mset">'
+    + '<label>期間<span class="row2"><input type="date" id="ms_s" value="' + esc(st.始め || '') + '"> 〜 <input type="date" id="ms_e" value="' + esc(st.終わり || '') + '"></span></label>'
+    + '<label>予約の締め切り<input type="datetime-local" id="ms_d" value="' + esc(st.締め切り || '') + '"></label>'
+    + '<label>面談の長さ<select id="ms_l">' + opt([10, 15, 20, 25, 30, 40, 50], st.長さ || 20) + '</select>　間の準備<select id="ms_p">' + opt([0, 5, 10, 15], st.準備 === undefined ? 5 : st.準備) + '</select></label>'
+    + '<div class="s" style="font-weight:700;margin-top:8px">時間帯（この中を「長さ＋準備」で区切って枠にします）</div><div id="ms_t">'
+    + 帯.map(x => bandRow(x)).join('') + '</div><button class="mini" onclick="document.getElementById(\'ms_t\').insertAdjacentHTML(\'beforeend\', bandRow({名:\'\',始:\'\',終:\'\',使う:true}))">＋ 時間帯を足す</button>'
+    + '<div class="s" style="font-weight:700;margin-top:10px">対象のクラス（卒業学年は外す）</div><div class="chks">'
+    + m.学科のクラス.map(c => '<label class="chk"><input type="checkbox" value="' + esc(c) + '"' + ((st.対象 || []).includes(c) ? ' checked' : '') + '> ' + esc(c) + '</label>').join('') + '</div>'
+    + '<button class="btn" style="margin-top:12px" onclick="mendanSave(this)">設定を保存する</button></div></details>';
+}
+function bandRow(x){
+  return '<div class="band"><input type="checkbox" class="b_use"' + (x.使う !== false ? ' checked' : '') + '><input class="b_name" placeholder="名前" value="' + esc(x.名 || '') + '"><input type="time" class="b_s" value="' + esc(x.始 || '') + '">〜<input type="time" class="b_e" value="' + esc(x.終 || '') + '"></div>';
+}
+async function mendanSave(btn){
+  const v = id => document.getElementById(id).value;
+  const 時間帯 = [...document.querySelectorAll('#ms_t .band')].map(b => ({ 使う: b.querySelector('.b_use').checked, 名: b.querySelector('.b_name').value, 始: b.querySelector('.b_s').value, 終: b.querySelector('.b_e').value })).filter(x => x.始 && x.終);
+  const 対象 = [...document.querySelectorAll('#mset .chks input:checked')].map(x => x.value);
+  btn.disabled = true;
+  try { const r = await api('mendan_setting', { 始め: v('ms_s'), 終わり: v('ms_e'), 締め切り: v('ms_d'), 長さ: v('ms_l'), 準備: v('ms_p'), 時間帯, 対象 }); if (!r.ok) throw new Error(r.error); await reloadKeep(renderTeacher); toast(r.message); }
+  catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
+}
+async function mendanNg(cls, date, slot, btn){
+  btn.disabled = true;
+  try { const r = await api('mendan_ng', { cls, date, slot }); if (!r.ok) throw new Error(r.error); await reloadKeep(renderTeacher); }
+  catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
+}
+async function mendanTarget(cls, sid, btn){
+  btn.disabled = true;
+  try { const r = await api('mendan_target', { cls, sid }); if (!r.ok) throw new Error(r.error); await reloadKeep(renderTeacher); }
+  catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
+}
+async function mendanRooms(cls, n, sel){
+  sel.disabled = true;
+  try { const r = await api('mendan_rooms', { cls, n }); if (!r.ok) throw new Error(r.error); await reloadKeep(renderTeacher); toast('同じ時間に' + n + 'か所にしました'); }
+  catch(e){ sel.disabled = false; toast(String(e && e.message ? e.message : e), true); }
+}
+async function mendanSend(cls, btn){
+  if (btn.dataset.sure !== '1') { btn.dataset.sure = '1'; btn.textContent = 'もう一度押すと、' + cls + 'の保護者にLINEを送ります'; return; }
+  btn.disabled = true;
+  try { const r = await api('mendan_send', { cls }); if (!r.ok) throw new Error(r.error); await reloadKeep(renderTeacher); toast(r.message); }
+  catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
+}
+
 function toast(text, bad){
   const t = document.createElement('div'); t.className = 'refresh'; t.textContent = text;
   if (bad) t.style.background = '#c8453c';
@@ -596,7 +704,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版37' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版39' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
