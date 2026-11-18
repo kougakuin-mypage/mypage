@@ -74,6 +74,9 @@
   .stat .k{font-size:13px;color:var(--sub)}
   .stat .v{font-size:25px;font-weight:700;line-height:1.2;color:var(--navy)}
   .stat.pub{background:var(--green-soft)} .stat.pub .v{color:var(--green)}
+  .calc{word-break:auto-phrase;margin-top:10px;border:1.5px solid var(--navy);border-radius:10px;padding:9px 12px;font-size:14.5px;color:var(--ink)}
+  .calc b{color:var(--navy);font-size:17px}
+  .calc .s{display:block;font-size:13px;color:var(--sub);margin-top:2px}
   dl.words{margin:10px 0 0;font-size:13px;color:var(--sub);background:var(--bg);border-radius:10px;padding:8px 12px;display:grid;grid-template-columns:auto 1fr;gap:4px 10px}
   dl.words dt{font-weight:700;color:var(--ink)} dl.words dd{margin:0;word-break:auto-phrase}
   .stat .v span{font-size:13px;font-weight:500;margin-left:2px}
@@ -286,11 +289,18 @@ function renderMypage(){
 
   const a = p.出欠;
   // 11/18：公欠を分けて出す（以前は 欠席・遅刻・欠課 の3つ）。欠課などの言葉の説明を付け、学生のページにも出す
+  // 11/18：欠課6コマ＝欠席1日分を足した「出席率の計算での欠席」を、式の形で出す（池田さん：欠席3日＋欠課7コマ → 4日）
+  const kk = Math.floor(a.欠課 / 6), rest = a.欠課 % 6, total = a.欠席 + kk;
+  const calc = '<div class="calc">出席率の計算では <b>欠席' + total + '日</b>'
+    + (kk ? '<span class="s">＝ 欠席' + a.欠席 + '日 ＋ 欠課' + (kk * 6) + 'コマ分の' + kk + '日</span>' : '')
+    + (parent ? '' : '<span class="s">あと' + (6 - rest) + 'コマの欠課で、<br>もう1日欠席扱いになります。</span>')
+    + '</div>';
   const tiles = '<div class="stats">'
     + '<div class="stat"><div class="k">欠席</div><div class="v">' + a.欠席 + '<span>日</span></div></div>'
     + '<div class="stat pub"><div class="k">公欠</div><div class="v">' + (a.公欠 || 0) + '<span>日</span></div></div>'
     + '<div class="stat' + (a.遅刻 >= 5 ? ' warn' : '') + '"><div class="k">遅刻</div><div class="v">' + a.遅刻 + '<span>回</span></div></div>'
     + '<div class="stat"><div class="k">欠課</div><div class="v">' + a.欠課 + '<span>コマ</span></div></div></div>'
+    + calc
     + '<dl class="words">'
     + '<dt>欠席</dt><dd>病気や私用などで休んだ日</dd>'
     + '<dt>公欠</dt><dd>就職試験・忌引・感染症による出席停止などで休んだ日（出席扱い）</dd>'
@@ -362,7 +372,7 @@ function renderMypage(){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版15' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版16' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
