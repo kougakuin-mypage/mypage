@@ -322,12 +322,25 @@ function renderMypage(){
       : '<div class="done-ok">残っている補習はありません。</div>';
   }else{
     // 11/18：済んだ補習は「済みの補習」に畳み、押すと開く。補習をした日も出す
-    const open = p.補習.filter(r => r.状態 !== '済'), done = p.補習.filter(r => r.状態 === '済');
+    // 11/18：同じ日・同じ科目の補習は1行にまとめる（例：法規1コマ＋法規1コマ → 法規2コマ）。以前は1件ずつ別の行
+    const grp = [], gi = {};
+    p.補習.forEach(r => {
+      const k = r.授業日 + '|' + r.科目;
+      const rest = r.状態 === '済' ? 0 : r.コマ, all = r.全体 || r.コマ;
+      if (!(k in gi)){ gi[k] = grp.length; grp.push({ 授業日: r.授業日, 科目: r.科目, 全体: 0, 残り: 0, 済みコマ: 0, 期限: '', 実施日: [] }); }
+      const g = grp[gi[k]];
+      g.全体 += all; g.残り += rest; g.済みコマ += r.状態 === '済' ? all : (r.済みコマ || 0);
+      if (rest && r.期限 && !g.期限) g.期限 = r.期限;
+      (r.実施日 || []).forEach(x => { if (g.実施日.indexOf(x) < 0) g.実施日.push(x); });
+    });
+    grp.forEach(g => { g.状態 = g.残り > 0 ? '未' : '済'; g.コマ = g.残り > 0 ? g.残り : g.全体; });
+    const open = grp.filter(r => r.状態 !== '済'), done = grp.filter(r => r.状態 === '済');
     const when = r => (r.実施日 && r.実施日.length) ? r.実施日.join('・') + 'に補習' : '';
-    const row = r => '<li><span class="date">' + esc(r.授業日) + '</span><span class="body">' + esc(r.科目) + '　' + r.コマ + 'コマ'
+    const row = r => '<li><span class="date">' + esc(r.授業日) + '</span><span class="body">' + esc(r.科目) + '　' + (r.状態 === '済' ? r.コマ : r.全体) + 'コマ'
       + (r.状態 === '済'
           ? (when(r) ? '<div class="s">' + esc(when(r)) + '</div>' : '')
-          : '<div class="s">期限 ' + esc(r.期限) + (r.済みコマ ? '・' + r.済みコマ + 'コマ済み（' + esc(when(r)) + '）' : '') + '</div>')
+          : '<div class="s">期限 ' + esc(r.期限) + '</div>'
+            + (r.済みコマ ? '<div class="s">' + esc((r.実施日 || []).join('・')) + 'に' + r.済みコマ + 'コマ済み（残り' + r.コマ + '）</div>' : ''))
       + '</span><span class="tag t-' + esc(r.状態) + '">' + (r.状態 === '済' ? '済み' : 'まだ') + '</span></li>';
     hoshu = p.補習.length
       ? '<div class="big" style="margin-bottom:8px"><span class="n">' + p.補習残りコマ + '</span><span class="u">コマ　残り</span></div>'
@@ -360,7 +373,7 @@ function renderMypage(){
       + card('flag', '行事予定', events)
     : card('book', '補習の残り', hoshu, 'first')
       + card('cal', '今年度の出欠', lateStu)
-      + card('bell', '学校からの緊急連絡', emergency)
+      /* 11/18：「学校からの緊急連絡」は外した（緊急の連絡は公式LINEで届くため） */
       + card('flag', '行事予定', events);
   app.innerHTML = head + '<div class="wrap">' + body
     /* 11/17：お知らせ欄は外した（職員の入力を増やさないため。大事な連絡は公式LINEの配信で送る） */
@@ -372,7 +385,7 @@ function renderMypage(){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版16' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版17' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
