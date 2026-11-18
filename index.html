@@ -162,6 +162,10 @@
   .booked-box{background:var(--navy-soft);color:var(--navy);font-weight:700;font-size:14px;border-radius:10px;padding:8px 12px;margin-bottom:8px}
   .cls{font-size:13px;font-weight:700;color:var(--navy);background:var(--navy-soft);border-radius:8px;padding:3px 10px;margin:10px 0 2px;display:inline-block}
   .nocome{display:inline-block;font-size:11.5px;font-weight:700;color:var(--red);background:var(--red-soft);border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+  .plan{margin-top:8px;border-radius:10px;padding:9px 12px;font-size:14px}
+  .plan.good{background:var(--green-soft);color:var(--green)}
+  .plan.warn{background:var(--amber-soft);color:#8a5a12}
+  .plan.bad{background:var(--red-soft);color:var(--red);font-weight:700}
   .s.booked{color:var(--navy);font-weight:700}
   button.mini{font:inherit;font-size:12.5px;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:8px;padding:4px 8px;margin-left:6px;flex:0 0 auto}
   button.mini.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
@@ -480,6 +484,20 @@ function bookedList(p){   // 補習の残りの下に、予約している日を
   if (!p || !p.予約 || !p.予約.一覧.length) return '';
   return '<div class="booked-box">' + p.予約.一覧.map(b => '<div>' + (b.状態 === '確定' ? '予約：' : '承認待ち：') + esc(b.日付) + ' ' + esc(b.枠.replace(/（.*$/, '')) + '</div>').join('') + '</div>';
 }
+// 11/18：見通し（いつ残りがなくなるか・期限に間に合うか）
+function mitooshi(y){
+  const m = y.見通し;
+  if (!m) return '<div class="note" style="margin-top:0">補習の残り：<b>' + y.残り + 'コマ</b>（あと<b>' + y.予約できる数 + 'コマ</b>予約できます）。</div>';
+  let line;
+  if (m.残り <= 0) line = '<div class="ok" style="margin-top:0">残っている補習はありません。</div>';
+  else if (m.足りない > 0) line = '<div class="plan warn">あと<b>' + m.足りない + 'コマ</b>予約すると、残りがすべて埋まります。</div>';
+  else line = '<div class="plan ' + (m.間に合わない.length ? 'warn' : 'good') + '"><b>' + esc(m.終わる日) + '</b>に残りがなくなります' + (m.承認待ち ? '（承認待ち' + m.承認待ち + 'コマが承認されれば）' : '') + '。</div>';
+  // 11/18：期限に遅れても罰はないので、強い言い方・赤字はやめて「担任に相談」に（以前は「もっと早い日を予約してください」の赤字）
+  const late = m.間に合わない.map(x => '<div class="plan warn">' + esc(x.科目) + 'の期限（' + esc(x.期限) + '）に間に合わない見込みです。担任の先生に相談してください。</div>').join('');
+  return '<div class="note" style="margin-top:0">補習の残り：<b>' + m.残り + 'コマ</b>' + (m.近い期限 ? '　いちばん近い期限：<b>' + esc(m.近い期限) + '</b>' : '')
+    + '<br>予約：' + m.予約数 + 'コマ' + (m.承認待ち ? '（うち承認待ち' + m.承認待ち + '）' : '') + '。どの補習を消化するかは、当日先生が決めます。</div>'
+    + line + late;
+}
 function slotLabel(t){ const m = String(t).match(/^(.*?)（(.*)）$/); return m ? esc(m[1]) + '<br><small>' + esc(m[2]) + '</small>' : esc(t); }
 function renderBooking(){
   const d = state.data, p = curPerson(), y = p.予約;
@@ -505,7 +523,7 @@ function renderBooking(){
     ? '<div class="note" style="margin-top:0;margin-bottom:10px">朝補習・放課後1コマ目は、その場で決まります。<b>放課後2コマ目は、先生の承認待ち</b>になります。取り消しは前の授業日の17:00まで。'
       + (y.承認制 ? '<br><b>「来なかった」が' + y.来なかった + '回になったため、予約はすべて承認待ちになります。</b>' : '') + '</div><ul class="list">' + days + '</ul>'
     : '<div class="empty">予約できる補習は残っていません。</div>';
-  const left = '<div class="note" style="margin-top:0">補習の残り：<b>' + y.残り + 'コマ</b>（あと<b>' + y.予約できる数 + 'コマ</b>予約できます）。どの補習を消化するかは、当日先生が決めます。</div>';
+  const left = mitooshi(y);
   app.innerHTML = head + '<div class="wrap">'
     + card('book', '予約した補習', left + '<div style="margin-top:10px">' + mine + '</div>', 'first')
     + card('cal', '予約できる日', can)
@@ -578,7 +596,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版35' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版37' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
