@@ -518,7 +518,7 @@ function renderBooking(){
   const mine = y.一覧.length
     ? '<ul class="list">' + y.一覧.map(b => '<li><span class="date">' + esc(b.日付) + '</span><span class="body">' + esc(b.枠.replace(/（.*$/, '')) + '<div class="s">' + esc((b.枠.match(/（(.*)）/) || ['', ''])[1]) + '</div></span>'
         + '<span class="tag ' + (b.状態 === '確定' ? 't-済' : 't-確認中') + '">' + STATE_LABEL[b.状態] + '</span>'
-        + (b.取り消せる ? '<button class="mini" onclick="cancelBooking(\'' + esc(b.id) + '\')">取り消す</button>' : '') + '</li>').join('') + '</ul>'
+        + (b.取り消せる ? '<button class="mini" onclick="cancelBooking(\'' + esc(b.id) + '\')">取り消す</button>' : (b.承認した先生 ? '<div class="s" style="flex-basis:100%">取り消すときは、' + esc(b.承認した先生) + '先生か担任の先生に連絡</div>' : '')) + '</li>').join('') + '</ul>'
     : '<div class="empty">予約している補習はありません。</div>';
   const pick = state.pick;
   const days = y.日.map((x, di) => '<li class="bday"><div class="bd"><b>' + esc(x.表示) + '</b>'
@@ -531,7 +531,7 @@ function renderBooking(){
         }).join('') + '</div>'
       + (pick && pick.di === di ? choosePanel(x, x.枠[pick.wi]) : '') + '</li>').join('');
   const can = (y.予約できる数 > 0 || y.一覧.length)
-    ? '<div class="note" style="margin-top:0;margin-bottom:10px">朝補習・放課後1コマ目は、その場で決まります。<b>放課後2コマ目は、先生の承認待ち</b>になります。取り消しは前の授業日の17:00まで。'
+    ? '<div class="note" style="margin-top:0;margin-bottom:10px">朝補習・放課後1コマ目は、その場で決まります。<b>放課後2コマ目は、先生の承認待ち</b>になります。取り消しは補習が始まる時間まで（承認済みの2コマ目は取り消せません。先生に連絡してください）。'
       + (y.承認制 ? '<br><b>「来なかった」が' + y.来なかった + '回になったため、予約はすべて承認待ちになります。</b>' : '') + '</div><ul class="list">' + days + '</ul>'
     : '<div class="empty">予約できる補習は残っていません。</div>';
   const left = mitooshi(y);
@@ -704,7 +704,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版39' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版41' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
