@@ -365,17 +365,22 @@ function renderMypage(){
     + '<div class="warn-box">遅刻はあと' + (next - n) + '回（' + next + '回）になると、保護者にもLINEでお知らせが届きます。</div>'
     + '<div class="note" style="margin-top:8px">朝のSHR（9:20）に遅れると、遅刻1回に加えて欠課1コマとして数えます。</div>';
   const emergency = '<div style="font-size:15px">現在、緊急の連絡はありません。</div><div class="note">休校などのときは、LINEにも届きます。</div>';
+  // 11/18：公開設定でチェックを外した項目は「準備中」と出す（データ係はその項目のデータを返さない）
+  const 公 = d.公開 || {};
+  const on = k => 公[k] !== false;
+  const soon = '<div class="empty">準備中です。公開まで、もうしばらくお待ちください。</div>';
+  const pick = (k, html) => on(k) ? html : soon;
   const body = parent
-    ? card('cal', '今年度の出欠', stats, 'first')
-      + card('list', '直近2週間の記録', recent)
-      + card('book', '補習の残り', hoshu)
-      + card('doc', '成績表', grade)
-      + card('flag', '行事予定', events)
+    ? card('cal', '今年度の出欠', pick('出欠', stats), 'first')
+      + (on('直近の記録') ? card('list', '直近2週間の記録', recent) : '')
+      + card('book', '補習の残り', pick('補習', hoshu))
+      + card('doc', '成績表', pick('成績表', grade))
+      + card('flag', '行事予定', pick('行事予定', events))
     /* 11/18：学生も「今年度の出欠」を一番上に（以前は 補習の残り → 今年度の遅刻 の順） */
-    : card('cal', '今年度の出欠', lateStu, 'first')
-      + card('book', '補習の残り', hoshu)
+    : card('cal', '今年度の出欠', pick('出欠', lateStu), 'first')
+      + card('book', '補習の残り', pick('補習', hoshu))
       /* 11/18：「学校からの緊急連絡」は外した（緊急の連絡は公式LINEで届くため） */
-      + card('flag', '行事予定', events);
+      + card('flag', '行事予定', pick('行事予定', events));
   app.innerHTML = head + '<div class="wrap">' + body
     /* 11/17：お知らせ欄は外した（職員の入力を増やさないため。大事な連絡は公式LINEの配信で送る） */
     + '<a class="link" href="#" onclick="renderRegister(true);return false;">' + (parent ? 'きょうだいの登録コードを追加する' : '登録コードを追加する') + '</a>'
@@ -386,7 +391,7 @@ function renderMypage(){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版18' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版19' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
