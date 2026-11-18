@@ -425,9 +425,8 @@ function renderTeacher(){
     '<li class="kday"><span class="date">' + esc(x.表示) + '</span>'
     + '<button class="two" aria-pressed="' + x.二コマ + '" onclick="setTwo(' + i + ')">' + (x.二コマ ? '✓ 2コマ残れる' : '2コマ残れる') + '</button>'
     + dayStatus(x) + '</li>').join('');
-  const hoshu = '<div class="note" style="margin-top:0;margin-bottom:10px">放課後1コマ補習は、建築の先生が誰かいれば必ずできるので、入れなくて大丈夫です。'
-    + '<b>2コマ補習（〜18:10）まで残れる日だけ</b>、「2コマ残れる」を押してください（もう一度押すと取り消し）。'
-    + '<br>朝補習（8:30〜9:20）はいつでもできます。1日の補習は、朝と放課後を合わせて<b>' + t.上限 + 'コマまで</b>です。土日・祝日は出していません。</div>'
+  // 11/18：説明は1行だけに（以前は1コマ補習・朝補習・上限・土日祝の説明も書いていたが長いので外した）
+  const hoshu = '<div class="note" style="margin-top:0;margin-bottom:10px"><b>2コマ補習（〜18:10）まで残れる日だけ</b>押してください。</div>'
     + '<ul class="list">' + rows + '</ul>';
   const soon = '<div class="empty">補習の予約の仕組みができたら、ここに出ます。</div>';
   app.innerHTML = head + '<div class="wrap">'
@@ -461,7 +460,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版24' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版25' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
