@@ -246,11 +246,19 @@ function showError(msg){
 
 async function api(action, extra){
   const idToken = liff.getIDToken();
-  const res = await fetch(API_URL, {
+  const go = () => fetch(API_URL, {
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify(Object.assign({ action, idToken }, extra || {})),
   });
+  // 11/19：通信が切れた（iPhoneの「Load failed」）ときは、1回だけ自動でやり直す。送る操作は二重送信にならないよう、やり直さない
+  let res;
+  try { res = await go(); }
+  catch (e) {
+    if (action === 'renraku_send') throw new Error('通信が切れました。「送った連絡」に出ていないか確かめてから、もう一度送ってください。');
+    await new Promise(r => setTimeout(r, 1200));
+    try { res = await go(); } catch (e2) { throw new Error('通信がうまくいきませんでした（' + (e2 && e2.message ? e2.message : e2) + '）。電波のよいところで、もう一度お試しください。'); }
+  }
   const text = await res.text();
   try{ return JSON.parse(text); }
   catch(_){ throw new Error('応答 ' + res.status + '：' + text.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').slice(0,160)); }
@@ -980,7 +988,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版46' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版47' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
