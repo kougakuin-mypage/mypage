@@ -209,6 +209,12 @@
   .fold-mark{font-size:13px;color:var(--sub);transition:transform .15s;transform:rotate(-90deg)}details.fold[open] .fold-mark{transform:none}
   .rkdone{margin-top:8px;border:1.5px solid var(--green);color:var(--green);border-radius:10px;padding:7px 12px;font-weight:700;font-size:14.5px}
   .rkdone span{font-weight:500;font-size:13px}.rkdone small{display:block;font-weight:500;font-size:12px;color:var(--sub)}
+  /* 11/19：先生用の画面をPCで開いたときは横に広く使う（左右2列） */
+  @media (min-width: 900px){
+    body[data-mode="teacher"] .wrap, body[data-mode="teacher"] header.top .in{max-width:1120px}
+    .tgrid,.rkgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start}
+    .rkgrid>div>.card:first-child,.tgrid>div:last-child>.card:first-child{margin-top:14px}
+  }
   .peekbar{background:#fff4d6;color:#7a5a00;font-size:13px;font-weight:700;text-align:center;padding:6px}
   .seg{flex-wrap:wrap}
 </style>
@@ -247,11 +253,11 @@ function showError(msg){
 }
 
 async function api(action, extra){
-  const idToken = liff.getIDToken();
+  const idToken = WEB ? null : liff.getIDToken();
   const go = () => fetch(API_URL, {
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(Object.assign({ action, idToken }, extra || {})),
+    body: JSON.stringify(Object.assign(WEB ? { action, sess: WEB.sess } : { action, idToken }, extra || {})),
   });
   // 11/19：通信が切れた（iPhoneの「Load failed」）ときは、1回だけ自動でやり直す。送る操作は二重送信にならないよう、やり直さない
   let res;
@@ -510,16 +516,16 @@ function renderTeacher(){
   const hoshu = '<div class="note" style="margin-top:0;margin-bottom:10px"><b>2コマ補習（〜18:10）まで残れる日だけ</b>押してください。</div>'
     + '<ul class="list">' + rows + '</ul>';
   const tb = teacherBookings();
-  app.innerHTML = head + '<div class="wrap">'
+  app.innerHTML = head + '<div class="wrap"><div class="tgrid"><div>'   /* 11/19：PCでは左右2列（左：補習、右：連絡・三者面談）。スマホでは上から順に並ぶ */
     + card('list', tb.title || '次の授業日の補習の予約', tb.next, 'first')
     + card('book', '承認待ちの予約', tb.wait)
     /* 11/19：並びは 予約 → 承認待ち → 2コマ残れる日 → 連絡 → 三者面談 */
     /* 11/19：三者面談と「2コマ残れる日」は、たたんでおいてタップで開く形に（以前は開いたまま） */
     + foldCard('two', 'cal', '2コマ補習まで残れる日', '入れた日：' + t.放課後.filter(x => x.二コマ).length + '日', hoshu)
-    + rk
+    + '</div><div>' + rk
     /* 11/19：三者面談はめったに使わないので一番下に（以前は「2コマ残れる日」の上） */
     + foldCard('mendan', 'flag', '三者面談', mendanHint(t.面談), mendanTeacher(t.面談))
-    + footer() + '</div>';
+    + '</div></div>' + footer() + '</div>';
 }
 async function setTwo(i){
   const t = state.data.teacher, x = t.放課後[i], want = !x.二コマ;
@@ -830,7 +836,7 @@ function rkMake(){
     + '<label class="chk" style="margin-top:10px"><input type="checkbox"' + (f.確認 ? ' checked' : '') + ' onchange="state.rk.form.確認=this.checked;state.rk.sure=false;rkPreview()"> 「確認しました」ボタンを付ける</label>'
     + '<div style="font-size:12.5px;color:var(--sub)">受け取った人のマイページにボタンが出て、確認した人・まだの人が「送った連絡」で分かります（書類の提出など）。</div></div>');
   const prev = card('bell', '送る前の確認', '<div id="rk_prev"></div>') + rkTplSave();
-  return kind + to + text + prev;
+  return '<div class="rkgrid"><div>' + kind + to + '</div><div>' + text + prev + '</div></div>';   // 11/19：PCでは左に宛先、右に文と確認
 }
 function rkRoster(){
   const k = state.rk, d = k.data, q = k.q.trim(), f = k.form;
@@ -1079,11 +1085,39 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版51' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版52' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
-liff.init({ liffId: LIFF_ID }).then(() => {
+// 11/19：先生は、出席管理アプリ（統合版）の「保護者連絡・補習」から入る（?pass=通行証）。LINEは使わない
+//   通行証をこの画面用のログイン（7日）に替えて、このPC・スマホに覚えておく。?t=1 で開くと、覚えたログインで入る（承認待ちのメールのリンク）
+const QS = new URLSearchParams(location.search);
+let WEB = null;
+function webSess(){ try { return localStorage.getItem('mypage_teacher_sess') || ''; } catch(_) { return ''; } }
+function webGone(msg){
+  document.body.dataset.mode = 'teacher';
+  center('<div style="font-weight:700;font-size:17px">先生用の画面</div><div style="color:#5b6878;font-size:14.5px;max-width:360px">' + esc(msg || '出席管理アプリのホームの「📱 保護者連絡・補習」から開いてください。') + '</div>');
+}
+async function webBoot(){
+  document.body.dataset.mode = 'teacher'; document.body.classList.add('web');
+  try{
+    if (QS.get('pass')) {
+      WEB = { sess: '' };
+      const r = await api('teacher_login', { pass: QS.get('pass') });
+      history.replaceState(null, '', location.pathname + '?t=1');
+      if (!r.ok) return webGone(r.error);
+      WEB.sess = r.sess; try { localStorage.setItem('mypage_teacher_sess', r.sess); } catch(_) {}
+    } else {
+      const s = webSess(); if (!s) return webGone(); WEB = { sess: s };
+    }
+    center('<div class="spinner"></div><div>読み込んでいます…</div>');
+    const r = await api('me');
+    if (!r.ok) { if (/LOGIN/.test(r.error || '')) { try { localStorage.removeItem('mypage_teacher_sess'); } catch(_) {} return webGone(String(r.error).replace(/^LOGIN：?/, '')); } return showError(r.error); }
+    window.__ver = r.ver || ''; state.data = r; state.idx = 0; renderTeacher();
+  }catch(e){ showError('通信がうまくいきませんでした。もう一度お試しください。'); }
+}
+if (QS.get('pass') || QS.get('t')) webBoot();
+else liff.init({ liffId: LIFF_ID }).then(() => {
   if(!liff.isLoggedIn()){ liff.login({ redirectUri: location.href }); return; }
   load();
 }).catch(() => showError('LINEの準備ができませんでした。LINEアプリから開き直してください。'));
