@@ -296,6 +296,42 @@
   .md-leg{font-size:12px;color:var(--sub);margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .md-leg span{display:inline-block;padding:1px 8px;border-radius:5px;font-size:11.5px}
   .md-leg .l-ok{border:1px solid var(--line);background:#fff;color:var(--sub)}.md-leg .l-ng{background:#eceff3;border:1px dashed #b9c1cc;color:#8a95a3}.md-leg .l-full{background:var(--green-soft);border:1px solid var(--green);color:var(--green)}.md-leg .l-some{background:var(--amber-soft);border:1px solid var(--amber);color:#8a5a12}
+  /* 11/19 版57：PCの新しい連絡（段階に分ける・右に届くLINEの見た目） */
+  .rk-steps{display:flex;align-items:center;gap:0;margin:14px 0 4px}
+  .rk-steps i{flex:0 0 36px;height:2px;background:var(--line)}
+  .rk-steps button{display:flex;align-items:center;gap:8px;background:transparent;border:0;font:inherit;font-size:15px;color:var(--sub);cursor:pointer;padding:6px 4px}
+  .rk-steps button span{width:28px;height:28px;border-radius:50%;border:2px solid #c3ccd7;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;background:#fff}
+  .rk-steps button.on{color:var(--navy);font-weight:700}.rk-steps button.on span{background:var(--navy);border-color:var(--navy);color:#fff}
+  .rk-steps button.done{color:var(--green)}.rk-steps button.done span{border-color:var(--green);color:var(--green)}
+  .rk-desk2{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start;margin-top:10px}
+  .rk-panel{background:#fff;border:1px solid #d5dde7;border-radius:16px;padding:22px 24px;box-shadow:0 2px 8px rgba(20,40,70,.07)}
+  .rk-q{font-size:20px;font-weight:700;color:var(--ink);margin-bottom:14px}
+  .rk-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .rk-row .lb{font-size:13px;color:var(--sub)}
+  .rk-row .seg{margin:0}
+  .rk-panel #rk_cls{max-height:calc(100vh - 420px);min-height:240px;overflow:auto;padding-right:6px}
+  .rk-ta{display:block;width:100%;font:inherit;font-size:16px;line-height:1.7;padding:12px 14px;border:1.5px solid #c9d3de;border-radius:12px;resize:vertical;margin-top:6px}
+  .rk-ta:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px var(--navy-soft)}
+  .rk-opts{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+  .rk-opts .rk-row{margin:0}
+  .rk-opts .chk{margin:0}
+  .rk-title{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:700}
+  .rk-title input{font:inherit;font-weight:400;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+  .rk-hint{font-size:12.5px;color:var(--sub);font-weight:400;margin-left:6px}
+  .rk-nav{display:flex;justify-content:space-between;margin-top:14px}
+  .rk-nav .btn{width:auto;padding:12px 26px;margin:0}
+  .rk-side{position:sticky;top:16px}
+  .rk-sum{background:#fff;border:1px solid #d5dde7;border-radius:14px;padding:12px 16px;box-shadow:0 2px 8px rgba(20,40,70,.07)}
+  .rk-sum .r{display:flex;justify-content:space-between;padding:5px 0;font-size:14px;border-bottom:1px dashed var(--line)}
+  .rk-sum .r:last-child{border-bottom:0}
+  .rk-sum .r span{color:var(--sub)}.rk-sum .r b .no{color:#a3acb8;font-weight:400}
+  .rk-sum .r.warn b{color:var(--amber)}
+  .phone{margin:14px auto 0;width:300px;border-radius:30px;border:8px solid #1f2a37;background:#8cabd9;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+  .ph-top{background:#1f2a37;color:#fff;font-size:12.5px;text-align:center;padding:4px 0 8px;font-weight:700}
+  .ph-body{min-height:300px;max-height:420px;overflow:auto;padding:14px 12px}
+  .ph-msg{background:#fff;border-radius:16px;border-top-left-radius:4px;padding:10px 12px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word;max-width:94%}
+  .ph-empty{color:#fff;font-size:13px;text-align:center;margin-top:110px;line-height:1.7;opacity:.95}
+  .ph-cap{text-align:center;font-size:12px;color:var(--sub);margin-top:6px}
   .dk-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;list-style:none;padding:0;margin:0}
   .dk-days li.kday{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
   .peekbar{background:#fff4d6;color:#7a5a00;font-size:13px;font-weight:700;text-align:center;padding:6px}
@@ -915,7 +951,7 @@ async function openRenraku(){
   try{ const r = await api('renraku_init'); if (!r.ok) throw new Error(r.error); rkMerge(k, r); renderRenraku(); rkQuota(); }
   catch(e){ app.innerHTML = rkHead() + '<div class="wrap"><div class="err">' + esc(String(e && e.message ? e.message : e)) + '</div></div>'; }
 }
-const PAGE_VER = '2026-11-19 版56';   // 画面の版（直したらここを変える）
+const PAGE_VER = '2026-11-19 版57';   // 画面の版（直したらここを変える）
 // ---------- 11/19 版54：PCの先生の画面（左にメニュー・右に中身） ----------
 function isDesk(){ try { return document.body.dataset.mode === 'teacher' && !state.peek && window.matchMedia('(min-width: 900px)').matches; } catch(_) { return false; } }
 let deskTimer = null, deskWas = null;
@@ -1041,7 +1077,8 @@ function rkMake(){
     + '<label class="chk" style="margin-top:10px"><input type="checkbox"' + (f.確認 ? ' checked' : '') + ' onchange="state.rk.form.確認=this.checked;state.rk.sure=false;rkPreview()"> 「確認しました」ボタンを付ける</label>'
     + '<div style="font-size:12.5px;color:var(--sub)">受け取った人のマイページにボタンが出て、確認した人・まだの人が「送った連絡」で分かります（書類の提出など）。</div></div>');
   const prev = card('bell', '送る前の確認', '<div id="rk_prev"></div>') + rkTplSave();
-  if (isDesk()) {   // 11/19 版56：PCは、上に「相手・種類・確認ボタン」の帯、左に宛先（名簿は枠の中でスクロール）、右に文と送る前の確認
+  if (isDesk()) return rkMakeDesk();   // 11/19 版57：PCは3つの段階に分ける（版56の「全部を1画面に並べる形」は分かりにくかったのでやめた）
+  if (false) {   // 11/19 版56：PCは、上に「相手・種類・確認ボタン」の帯、左に宛先（名簿は枠の中でスクロール）、右に文と送る前の確認
     const bar = '<div class="card rk-bar"><div><span class="lb">送る相手</span>' + seg('相手', ['保護者', '学生', '両方'], f.相手, 'rkSetAite') + '</div>'
       + '<div><span class="lb">種類</span>' + seg('種類', ['お知らせ', '緊急'], f.種類, 'rkSetShurui') + '</div>'
       + '<label class="chk"><input type="checkbox"' + (f.確認 ? ' checked' : '') + ' onchange="state.rk.form.確認=this.checked;state.rk.sure=false;rkReRoster()"> 「確認しました」ボタンを付ける</label>'
@@ -1143,6 +1180,58 @@ async function rkTplDel(id, btn){
     state.rk.data.定型文 = r.定型文 || state.rk.data.定型文; rkReRoster(); toast(r.message); }
   catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
 }
+// ---------- 11/19 版57：PCの「新しい連絡」：① 宛先 → ② 文 → ③ 確かめて送る。右に、まとめと届くLINEの見た目をいつも出す ----------
+function rkText(sel){
+  const k = state.rk, f = k.form, s0 = sel[0];
+  if (!s0 || !f.本文.trim()) return '';
+  const who = f.相手 === '学生' ? s0.氏名 + 'さんへ' : s0.氏名 + 'さんの保護者の方へ';
+  return '【鹿児島工学院専門学校】' + (f.種類 === '緊急' ? '【緊急】' : '') + '\n\n' + who + '\n' + f.本文.replace(/\{名前\}/g, s0.氏名 + 'さん') + '\n\n（' + rkFrom(sel) + '）\n'
+    + (f.確認 ? '▼お読みになったら、マイページで「確認しました」を押してください\n' : '▼マイページでも見られます\n') + 'https://kougakuin-mypage.github.io/…\n※このメッセージには返信できません。'
+    + (f.相手 === '学生' ? '用件は担任の先生へ。' : 'ご用件は、学校（' + TEL + '／平日8:30〜17:00）へお電話ください。');
+}
+function rkStep(n){
+  const k = state.rk;
+  if (n >= 2 && !k.sel.size) return toast('先に、宛先の学生を選んでください', true);
+  if (n >= 3 && !k.form.本文.trim()) return toast('先に、本文を書いてください', true);
+  k.step = n; k.sure = false; renderRenraku(); window.scrollTo(0, 0);
+}
+function rkMakeDesk(){
+  const k = state.rk, f = k.form, step = k.step || 1;
+  const names = ['宛先を選ぶ', '文を書く', '確かめて送る'];
+  const stepper = '<div class="rk-steps">' + names.map((l, i) => '<button class="' + (i + 1 === step ? 'on' : i + 1 < step ? 'done' : '') + '" onclick="rkStep(' + (i + 1) + ')"><span>' + (i + 1 < step ? '✓' : i + 1) + '</span>' + l + '</button>').join('<i></i>') + '</div>';
+  let main;
+  if (step === 1) main = '<div class="rk-panel"><div class="rk-q">だれに送りますか</div>'
+    + '<div class="rk-row"><span class="lb">送る相手</span>' + seg('相手', ['保護者', '学生', '両方'], f.相手, 'rkSetAite') + '</div>' + rkRoster() + '</div>';
+  else if (step === 2) main = '<div class="rk-panel"><div class="rk-q">どんな連絡ですか</div>' + rkTpl()
+    + '<textarea id="rk_b" rows="10" maxlength="1500" class="rk-ta" placeholder="ここに本文を書きます。宛名・学校名・返信できない旨は自動で付きます。\n学生の名前を出したいところは {名前} と書くと「○○さん」に変わります。" oninput="state.rk.form.本文=this.value;state.rk.sure=false;rkSide()">' + esc(f.本文) + '</textarea>'
+    + '<div class="rk-opts">'
+    + '<div class="rk-row"><span class="lb">種類</span>' + seg('種類', ['お知らせ', '緊急'], f.種類, 'rkSetShurui') + '<span class="rk-hint">' + (f.種類 === '緊急' ? '夜でもすぐ届き、頭に【緊急】が付きます' : '夜に送ると、翌朝7:30ごろに届けます') + '</span></div>'
+    + '<label class="chk"><input type="checkbox"' + (f.確認 ? ' checked' : '') + ' onchange="state.rk.form.確認=this.checked;state.rk.sure=false;rkSide()"> 「確認しました」ボタンを付ける<span class="rk-hint">（読んだかどうかが分かります）</span></label>'
+    + '<label class="rk-title">題名<span class="rk-hint">（あとで探すための名前・相手には出ません）</span><input id="rk_t" maxlength="60" placeholder="例：奨学金の書類（給付）" value="' + esc(f.タイトル) + '" oninput="state.rk.form.タイトル=this.value;state.rk.sure=false"></label>'
+    + '</div>' + rkTplSave() + '</div>';
+  else main = '<div class="rk-panel"><div class="rk-q">これで送りますか</div><div id="rk_prev"></div></div>';
+  const nav = '<div class="rk-nav">' + (step > 1 ? '<button class="btn ghost" onclick="rkStep(' + (step - 1) + ')">‹ 戻る</button>' : '<span></span>')
+    + (step < 3 ? '<button class="btn" onclick="rkStep(' + (step + 1) + ')">次へ：' + names[step] + ' ›</button>' : '') + '</div>';
+  return stepper + '<div class="rk-desk2"><div>' + main + nav + '</div><div><div class="rk-side" id="rk_side"></div></div></div>';
+}
+function rkSide(){
+  const el = document.getElementById('rk_side'); if (!el) return;
+  const k = state.rk, f = k.form;
+  const sel = rkAll().filter(s => k.sel.has(s.sid));
+  const toP = f.相手 !== '学生', toS = f.相手 !== '保護者';
+  const pLine = sel.reduce((t, s) => t + s.保護者, 0), sLine = sel.filter(s => s.学生).length;
+  const no = (toP ? sel.filter(s => !s.保護者).length : 0) + (toS ? sel.filter(s => !s.学生).length : 0);
+  const n = (toP ? pLine : 0) + (toS ? sLine : 0);
+  const text = rkText(sel);
+  const row = (k1, v, cls) => '<div class="r' + (cls ? ' ' + cls : '') + '"><span>' + k1 + '</span><b>' + v + '</b></div>';
+  el.innerHTML = '<div class="rk-sum">'
+    + row('送る相手', esc(f.相手)) + row('宛先', sel.length ? sel.length + '人' : '<span class="no">まだ選んでいません</span>')
+    + row('届くLINE', n + '通') + (no ? row('届かない人', no + '人（未登録）', 'warn') : '')
+    + row('種類', f.種類 === '緊急' ? '<span style="color:var(--red)">緊急</span>' : 'お知らせ') + row('確認ボタン', f.確認 ? 'あり' : 'なし') + '</div>'
+    + '<div class="phone"><div class="ph-top">鹿児島工学院専門学校</div><div class="ph-body">'
+    + (text ? '<div class="ph-msg">' + esc(text) + '</div>' : '<div class="ph-empty">' + (sel.length ? '本文を書くと、ここに届く文が出ます' : '宛先と本文を入れると、<br>ここに届くLINEの見た目が出ます') + '</div>')
+    + '</div></div>' + (text ? '<div class="ph-cap">' + esc(sel[0].氏名) + 'さんの' + (f.相手 === '学生' ? '' : '保護者に届く') + '例</div>' : '');
+}
 function rkReRoster(){ const y = window.scrollY, el = document.getElementById('rk_cls'), st = el ? el.scrollTop : 0; renderRenraku(); window.scrollTo(0, y); const e2 = document.getElementById('rk_cls'); if (e2) e2.scrollTop = st; }   // 名簿の枠の中のスクロール位置も保つ
 let rkTimer = null;
 function rkSearch(v){ state.rk.q = v; clearTimeout(rkTimer); rkTimer = setTimeout(() => { rkReRoster(); const i = document.getElementById('rk_q'); if (i){ i.focus(); i.setSelectionRange(v.length, v.length); } }, 300); }
@@ -1207,6 +1296,7 @@ async function rkPeek(sid, kind){
 function exitPeek(){ state.peek = null; renderRenraku(); }
 // 送る前の確認（届く数・未登録の人・LINEの文）
 function rkPreview(){
+  rkSide();   // 11/19 版57：PCの右側（まとめ・届くLINEの見た目）
   const el = document.getElementById('rk_prev'); if (!el) return;
   const k = state.rk, f = k.form, d = k.data;
   const sel = rkAll().filter(s => k.sel.has(s.sid));
@@ -1226,7 +1316,7 @@ function rkPreview(){
       + (noS.length ? '<details><summary>学生が未登録：' + noS.length + '人</summary>' + noS.map(s => esc(s.氏名)).join('、') + '</details>' : '') + '</div>';
   }
   if (q) html += '<div style="font-size:12.5px;color:' + (over ? 'var(--red)' : 'var(--sub)') + ';margin-top:6px">LINEの今月の送信数：' + q.使った + '通' + (q.上限 != null ? '／上限' + q.上限 + '通（あと' + Math.max(0, q.上限 - q.使った) + '通）' : '') + '</div>';
-  if (sel.length && f.本文){
+  if (sel.length && f.本文 && !isDesk()){
     const s0 = sel[0], who = (f.相手 === '学生' ? s0.氏名 + 'さんへ' : s0.氏名 + 'さんの保護者の方へ');
     const text = '【鹿児島工学院専門学校】' + (f.種類 === '緊急' ? '【緊急】' : '') + '\n\n' + who + '\n' + f.本文.replace(/\{名前\}/g, s0.氏名 + 'さん') + '\n\n（' + rkFrom(sel) + '）\n'
       + (f.確認 ? '▼お読みになったら、マイページで「確認しました」を押してください\n' : '▼マイページでも見られます\n') + '（マイページのリンク）\n※このメッセージには返信できません。'
@@ -1247,7 +1337,7 @@ async function rkSend(btn){
   try{
     const r = await api('renraku_send', { 種類: f.種類, 相手: f.相手, タイトル: f.タイトル, 本文: f.本文, 確認: f.確認, sids: [...k.sel], 学科たち: rkDepts() });
     if (!r.ok) throw new Error(r.error);
-    k.form = RK_NEW(); k.sel = new Set(); k.sure = false; k.tab = 'sent'; k.sent = null; k.sentQ = ''; k.tpl = null;
+    k.form = RK_NEW(); k.sel = new Set(); k.sure = false; k.tab = 'sent'; k.step = 1; k.sent = null; k.sentQ = ''; k.tpl = null;
     renderRenraku(); window.scrollTo(0, 0); toast(r.message); rkQuota();
   }catch(e){ k.sure = false; rkPreview(); toast(String(e && e.message ? e.message : e), true); }
 }
