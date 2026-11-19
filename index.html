@@ -779,12 +779,12 @@ async function renrakuOk(id, btn){
  * 宛先は学生ごとにチェック（クラスごとに全員も）。保護者・学生・両方を選ぶ。よく使う宛先はグループに保存。
  * 送る前に、届く数・未登録の人・LINEの文を確かめてから、2回押して送る */
 const RK_NEW = () => ({ 種類: 'お知らせ', 相手: '保護者', タイトル: '', 本文: '', 確認: false });
-function rkState(){ return state.rk || (state.rk = { tab: 'make', form: RK_NEW(), sel: new Set(), q: '', open: {}, peekSid: '', detail: null, sure: false }); }
+function rkState(){ return state.rk || (state.rk = { tab: 'make', form: RK_NEW(), sel: new Set(), q: '', open: {}, peekSid: '', detail: null, sure: false, dept: '', loaded: {} }); }
 async function openRenraku(){
   const k = rkState(); k.detail = null; k.sure = false;
   app.innerHTML = rkHead() + '<div class="wrap"><div class="center" style="min-height:40vh"><div class="spinner"></div><div>名簿を読み込んでいます…</div></div></div>';
   window.scrollTo(0, 0);
-  try{ const r = await api('renraku_init'); if (!r.ok) throw new Error(r.error); k.data = r; renderRenraku(); }
+  try{ const r = await api('renraku_init'); if (!r.ok) throw new Error(r.error); rkMerge(k, r); renderRenraku(); }
   catch(e){ app.innerHTML = rkHead() + '<div class="wrap"><div class="err">' + esc(String(e && e.message ? e.message : e)) + '</div></div>'; }
 }
 function rkHead(){
@@ -841,6 +841,7 @@ function rkRoster(){
     return b.join('');
   };
   const cls = (d.クラス || []).map((c, ci) => {
+    if (d.全校 && c.学科 !== k.dept) return '';   // 11/19：全校の人は、選んだ学科のクラスだけ出す
     const list = c.学生.filter(s => !q || s.氏名.replace(/\s/g, '').indexOf(q.replace(/\s/g, '')) >= 0);
     if (q && !list.length) return '';
     const n = c.学生.filter(s => k.sel.has(s.sid)).length, all = n === c.学生.length;
@@ -859,31 +860,59 @@ function rkRoster(){
       + '<button class="btn ghost" style="margin-top:8px;padding:10px" onclick="rkGroupSave(this)">保存する</button></div></details>' : '';
   const mine = (d.グループ || []).filter(g => g.自分の);
   const manage = mine.length ? '<details class="done"><summary>自分のグループを消す</summary><div class="chks">' + mine.map(g => '<button class="mini" style="margin:0" onclick="rkGroupDel(\'' + esc(g.id) + '\',this)">' + esc(g.名前) + ' を消す</button>').join('') + '</div></details>' : '';
-  return groups
+  // 11/19：全校の人は、まず学科を選ぶ（選んだ学生は、学科を切り替えても覚えておく）
+  const bySel = {}; rkAll().filter(s => k.sel.has(s.sid)).forEach(s => (bySel[s.学科] = (bySel[s.学科] || 0) + 1));
+  const depts = d.全校 ? '<div style="font-size:13.5px;margin-bottom:4px">学科を選ぶ</div><div class="chks" style="margin-bottom:8px">'
+      + d.学科.map(g => '<button class="mini' + (k.dept === g ? ' on' : '') + '" style="margin:0" onclick="rkDept(\'' + esc(g) + '\')">' + esc(g) + (bySel[g] ? '（' + bySel[g] + '）' : '') + '</button>').join('')
+      + '<button class="mini" style="margin:0" onclick="rkAllSchool(this)">全校の全員を選ぶ</button></div>' : '';
+  return depts + groups
     + '<div class="row2" style="margin-bottom:6px"><input id="rk_q" placeholder="名前でさがす" value="' + esc(k.q) + '" style="font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:8px" oninput="rkSearch(this.value)">'
     + '<button class="mini" onclick="state.rk.sel=new Set();state.rk.sure=false;rkReRoster()">選択を全部外す</button></div>'
     + '<div style="font-size:13.5px;margin-bottom:4px">選んだ学生：<b>' + k.sel.size + '人</b>　<span style="color:var(--sub);font-size:12.5px">保＝LINEに登録している保護者の数、学＝学生の登録</span></div>'
-    + '<div id="rk_cls">' + (cls || '<div class="empty">名簿がありません。</div>') + '</div>' + save + manage;
+    + '<div id="rk_cls">' + (cls || '<div class="empty">' + (d.全校 && !k.dept ? '上で学科を選ぶと、名簿が出ます。' : '名簿がありません。') + '</div>') + '</div>' + save + manage;
 }
 function rkReRoster(){ const y = window.scrollY; renderRenraku(); window.scrollTo(0, y); }
 let rkTimer = null;
 function rkSearch(v){ state.rk.q = v; clearTimeout(rkTimer); rkTimer = setTimeout(() => { rkReRoster(); const i = document.getElementById('rk_q'); if (i){ i.focus(); i.setSelectionRange(v.length, v.length); } }, 300); }
 function rkToggle(sid, on){ const k = state.rk; if (on) k.sel.add(sid); else k.sel.delete(sid); k.sure = false; rkReRoster(); }
 function rkClass(ci, on){ const k = state.rk; k.data.クラス[ci].学生.forEach(s => on ? k.sel.add(s.sid) : k.sel.delete(s.sid)); k.open[ci] = true; k.sure = false; rkReRoster(); }
-function rkGroup(gi){ const k = state.rk, g = k.data.グループ[gi]; k.sel = new Set(g.学籍番号); k.sure = false; rkReRoster(); toast('「' + g.名前 + '」の' + g.学籍番号.length + '人を選びました'); }
+async function rkGroup(gi){
+  const k = state.rk, g = k.data.グループ[gi];
+  if (k.data.全校){ for (const dep of (g.学科 || [])) if (!k.loaded[dep]) { try { await rkLoad(dep); } catch(e){ return toast(String(e && e.message ? e.message : e), true); } } if (g.学科 && g.学科[0] && !k.dept) k.dept = g.学科[0]; }
+  const have = new Set(rkAll().map(s => s.sid));
+  k.sel = new Set(g.学籍番号.filter(s => have.has(s))); k.sure = false; rkReRoster(); toast('「' + g.名前 + '」の' + k.sel.size + '人を選びました');
+}
+// 11/19：全校の人の学科の名簿（読んだ学科は覚えておく）
+function rkMerge(k, r){ const keep = k.data && k.data.全校 ? k.data.クラス.filter(c => k.loaded[c.学科]) : []; k.data = r; if (r.全校) { k.data.クラス = keep; } else k.loaded = {}; }
+async function rkLoad(dep){
+  const k = state.rk; const r = await api('renraku_dept', { 学科: dep }); if (!r.ok) throw new Error(r.error);
+  k.data.クラス = k.data.クラス.filter(c => c.学科 !== dep).concat(r.クラス); k.loaded[dep] = true;
+}
+async function rkDept(dep){
+  const k = state.rk; k.dept = dep; k.q = '';
+  if (!k.loaded[dep]) { toast(dep + 'の名簿を読み込んでいます…'); try { await rkLoad(dep); } catch(e){ return toast(String(e && e.message ? e.message : e), true); } }
+  rkReRoster();
+}
+async function rkAllSchool(btn){
+  const k = state.rk; btn.disabled = true;
+  try { for (const dep of k.data.学科) if (!k.loaded[dep]) { btn.textContent = dep + 'を読み込み中…'; await rkLoad(dep); } }
+  catch(e){ btn.disabled = false; btn.textContent = '全校の全員を選ぶ'; return toast(String(e && e.message ? e.message : e), true); }
+  rkAll().forEach(s => k.sel.add(s.sid)); k.sure = false; if (!k.dept) k.dept = k.data.学科[0]; rkReRoster(); toast('全校の' + k.sel.size + '人を選びました');
+}
+function rkDepts(){ const k = state.rk; return [...new Set(rkAll().filter(s => k.sel.has(s.sid)).map(s => s.学科))]; }
 async function rkGroupSave(btn){
   const k = state.rk, name = document.getElementById('rk_gn').value.trim(), share = document.getElementById('rk_gs').checked;
   if (!name) return toast('グループの名前を入れてください', true);
   btn.disabled = true;
-  try{ const r = await api('renraku_group_save', { 名前: name, 共有: share, sids: [...k.sel] }); if (!r.ok) throw new Error(r.error);
-    const r2 = await api('renraku_init'); if (r2.ok) k.data = r2; rkReRoster(); toast(r.message); }
+  try{ const r = await api('renraku_group_save', { 名前: name, 共有: share, sids: [...k.sel], 学科たち: rkDepts() }); if (!r.ok) throw new Error(r.error);
+    const r2 = await api('renraku_init'); if (r2.ok) rkMerge(k, r2); rkReRoster(); toast(r.message); }
   catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
 }
 async function rkGroupDel(id, btn){
   if (btn.dataset.sure !== '1'){ btn.dataset.sure = '1'; btn.textContent = 'もう一度押すと消します'; return; }
   btn.disabled = true;
   try{ const r = await api('renraku_group_delete', { id }); if (!r.ok) throw new Error(r.error);
-    const r2 = await api('renraku_init'); if (r2.ok) state.rk.data = r2; rkReRoster(); toast(r.message); }
+    const r2 = await api('renraku_init'); if (r2.ok) rkMerge(state.rk, r2); rkReRoster(); toast(r.message); }
   catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
 }
 function rkPeekOpen(sid){ const k = state.rk; k.peekSid = k.peekSid === sid ? '' : sid; rkReRoster(); }
@@ -934,10 +963,10 @@ async function rkSend(btn){
   if (!k.sure){ k.sure = true; rkPreview(); return; }
   btn.disabled = true; btn.textContent = '送っています…';
   try{
-    const r = await api('renraku_send', { 種類: f.種類, 相手: f.相手, タイトル: f.タイトル, 本文: f.本文, 確認: f.確認, sids: [...k.sel] });
+    const r = await api('renraku_send', { 種類: f.種類, 相手: f.相手, タイトル: f.タイトル, 本文: f.本文, 確認: f.確認, sids: [...k.sel], 学科たち: rkDepts() });
     if (!r.ok) throw new Error(r.error);
     k.form = RK_NEW(); k.sel = new Set(); k.sure = false; k.tab = 'sent';
-    const r2 = await api('renraku_init'); if (r2.ok) k.data = r2;
+    const r2 = await api('renraku_init'); if (r2.ok) rkMerge(k, r2);
     renderRenraku(); window.scrollTo(0, 0); toast(r.message);
   }catch(e){ k.sure = false; rkPreview(); toast(String(e && e.message ? e.message : e), true); }
 }
@@ -988,7 +1017,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版47' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版48' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
