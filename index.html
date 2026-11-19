@@ -203,6 +203,10 @@
   .rb.ok{background:var(--green-soft);color:var(--green)}.rb.no{background:var(--red-soft);color:var(--red)}.rb.wait{background:var(--amber-soft);color:var(--amber)}
   .bubble{white-space:pre-wrap;word-break:break-word;background:#e9f7e7;border-radius:14px;padding:10px 12px;font-size:14px;margin-top:4px}
   .form label.chk{display:flex}.form label.chk>input{display:inline-block;width:20px;height:20px;margin:0}
+  details.fold>summary{list-style:none;cursor:pointer}details.fold>summary::-webkit-details-marker{display:none}
+  details.fold>summary h2{margin:0}details.fold[open]>summary h2{margin-bottom:12px}
+  .fold-hint{margin-left:auto;font-size:12.5px;font-weight:500;color:var(--sub)}
+  .fold-mark{font-size:13px;color:var(--sub);transition:transform .15s;transform:rotate(-90deg)}details.fold[open] .fold-mark{transform:none}
   .peekbar{background:#fff4d6;color:#7a5a00;font-size:13px;font-weight:700;text-align:center;padding:6px}
   .seg{flex-wrap:wrap}
 </style>
@@ -325,6 +329,12 @@ function renderRegister(add){
 }
 
 /* ---------- マイページ ---------- */
+// 11/19：たためるカード（タップで開く）。開いたかどうかは state.fold に覚え、画面を描き直しても開いたまま
+function foldCard(key, icon, title, hint, inner){
+  const open = (state.fold || {})[key];
+  return '<details class="card fold"' + (open ? ' open' : '') + ' ontoggle="(state.fold=state.fold||{})[\'' + key + '\']=this.open"><summary><h2><span class="ic">' + ICON[icon] + '</span>' + esc(title)
+    + '<span class="fold-hint">' + esc(hint || '') + '</span><span class="fold-mark">▾</span></h2></summary>' + inner + '</details>';
+}
 function card(icon, title, inner, cls){
   return '<section class="card ' + (cls||'') + '"><h2><span class="ic">' + ICON[icon] + '</span>' + esc(title) + '</h2>' + inner + '</section>';
 }
@@ -476,8 +486,11 @@ function renderTeacher(){
     + '<div class="who">' + esc(t.氏名) + '<small>' + (t.職員 ? 'さん' : '先生') + '</small></div>'
     + '<div class="meta">' + esc(t.職員 ? (t.段階 || '職員') : t.学科) + '</div>' + tabsHtml(d) + '</div></header>';
   // 11/18 版43：保護者・学生への連絡の入口
-  const rk = t.連絡 && t.連絡.送れる ? card('bell', '保護者・学生への連絡', '<div class="note" style="margin-top:0">送れる範囲：<b>' + esc(t.連絡.範囲) + '</b><br>個別・クラス全員・グループなどに、LINEでお知らせを送れます。</div>'
-    + '<button class="btn" style="margin-top:10px" onclick="openRenraku()">連絡を作る・送った連絡を見る</button>') : '';
+  // 11/19：入口が出ないときも理由が分かるように（データ係が古い／担任のクラスがない）
+  const rk = !t.連絡 ? card('bell', '保護者・学生への連絡', '<div class="note" style="margin-top:0">データ係（GAS）が版43より前のため、まだ使えません。GASを差し替えて「新しいデプロイ」をしてください。</div>')
+    : !t.連絡.送れる ? card('bell', '保護者・学生への連絡', '<div class="note" style="margin-top:0">担任をしているクラスが全校共有の「先生」シートに入っていないため、送れる学生がいません。</div>')
+    : card('bell', '保護者・学生への連絡', '<div class="note" style="margin-top:0">送れる範囲：<b>' + esc(t.連絡.範囲) + '</b><br>個別・クラス全員・グループなどに、LINEでお知らせを送れます。</div>'
+    + '<button class="btn" style="margin-top:10px" onclick="openRenraku()">連絡を作る・送った連絡を見る</button>');
   if (t.職員) { app.innerHTML = head + '<div class="wrap">' + (rk ? rk.replace('class="card ', 'class="card first ') : '<div class="card first">この画面でできることは、まだありません。</div>') + footer() + '</div>'; return; }
   const rows = t.放課後.map((x, i) =>
     '<li class="kday"><span class="date">' + esc(x.表示) + '</span>'
@@ -491,8 +504,9 @@ function renderTeacher(){
     + card('list', tb.title || '次の授業日の補習の予約', tb.next, 'first')
     + card('book', '承認待ちの予約', tb.wait)
     + rk
-    + card('flag', '三者面談', mendanTeacher(t.面談))
-    + card('cal', '2コマ補習まで残れる日', hoshu)
+    /* 11/19：三者面談と「2コマ残れる日」は、たたんでおいてタップで開く形に（以前は開いたまま） */
+    + foldCard('mendan', 'flag', '三者面談', mendanHint(t.面談), mendanTeacher(t.面談))
+    + foldCard('two', 'cal', '2コマ補習まで残れる日', '入れた日：' + t.放課後.filter(x => x.二コマ).length + '日', hoshu)
     + footer() + '</div>';
 }
 async function setTwo(i){
@@ -650,6 +664,12 @@ async function mendanCancel(sid){
   if (state.peek) return toast('確認用の画面では取り消せません', true);
   try { const r = await api('mendan_cancel', { sid }); if (!r.ok) throw new Error(r.error); await reloadKeep(renderMypage); toast(r.message); }
   catch(e){ toast(String(e && e.message ? e.message : e), true); }
+}
+function mendanHint(m){
+  if (!m || m.エラー) return '';
+  if (!m.設定) return m.設定できる ? 'まだ設定がありません' : '準備中';
+  const c = m.クラス || [];
+  return c.length ? c.map(x => '予約 ' + x.予約数 + '/' + x.対象数).join('・') : String(m.設定.始め).slice(5).replace('-', '/') + '〜';
 }
 function mendanTeacher(m){
   if (!m) return '<div class="empty">読み込めませんでした。</div>';
@@ -958,7 +978,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-18 版43' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版44' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
