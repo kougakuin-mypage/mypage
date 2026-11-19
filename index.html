@@ -219,7 +219,7 @@
 
   /* 11/19 版54：PC（先生の画面・横幅900px以上）は、左にメニュー・右に中身の形（スマホは今までどおり縦並び） */
   .dk{display:flex;min-height:100vh}
-  .dk-side{width:240px;flex:0 0 240px;background:var(--navy);color:#fff;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;padding:20px 14px}
+  .dk-side{width:240px;flex:0 0 240px;background:var(--navy);color:#fff;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;max-height:calc(100vh - 28px);overflow:auto;padding:20px 14px}
   .dk-school{font-size:12.5px;opacity:.8;line-height:1.5}
   .dk-who{font-size:18px;font-weight:700;margin:14px 0 2px}
   .dk-who small{display:block;font-size:12.5px;font-weight:500;opacity:.85;margin-top:2px}
@@ -247,6 +247,17 @@
   .dk-tile.alert{border-color:var(--amber);background:#fff8ec}
   .dk-tile.alert .v{color:var(--amber)}
   .dk-2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start}
+  .dk-cal-h{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:6px;font-size:13px;font-weight:700;color:var(--sub);text-align:center}
+  .dk-cal{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;list-style:none;padding:0;margin:0}
+  .dk-cal li{border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-height:96px;display:flex;flex-direction:column;gap:6px;background:#fff}
+  .dk-cal li .dn{font-size:15px;font-weight:700;color:var(--navy)}
+  .dk-cal li .dn em{font-style:normal;font-size:11px;background:var(--navy);color:#fff;border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:2px}
+  .dk-cal li.dk-off{background:#f1f3f6;border-style:dashed}
+  .dk-cal li.dk-off .dn{color:#a3acb8}
+  .dk-cal li.on{border-color:var(--green);background:var(--green-soft)}
+  .dk-cal li.today{box-shadow:0 0 0 2px var(--navy) inset}
+  .dk-cal li .two{margin:0;width:100%}
+  .dk-cal li .by{font-size:12px;color:var(--sub);line-height:1.4;padding-left:0;margin-top:0;flex-basis:auto}
   .dk-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;list-style:none;padding:0;margin:0}
   .dk-days li.kday{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
   .peekbar{background:#fff4d6;color:#7a5a00;font-size:13px;font-weight:700;text-align:center;padding:6px}
@@ -832,7 +843,7 @@ async function openRenraku(){
   try{ const r = await api('renraku_init'); if (!r.ok) throw new Error(r.error); rkMerge(k, r); renderRenraku(); rkQuota(); }
   catch(e){ app.innerHTML = rkHead() + '<div class="wrap"><div class="err">' + esc(String(e && e.message ? e.message : e)) + '</div></div>'; }
 }
-const PAGE_VER = '2026-11-19 版54';   // 画面の版（直したらここを変える）
+const PAGE_VER = '2026-11-19 版55';   // 画面の版（直したらここを変える）
 // ---------- 11/19 版54：PCの先生の画面（左にメニュー・右に中身） ----------
 function isDesk(){ try { return document.body.dataset.mode === 'teacher' && !state.peek && window.matchMedia('(min-width: 900px)').matches; } catch(_) { return false; } }
 let deskTimer = null, deskWas = null;
@@ -863,6 +874,27 @@ function dkGo(k){
   if (k === 'renraku') { state.tpage = 'renraku'; return openRenraku(); }
   state.tpage = k; renderDesk(); window.scrollTo(0, 0);
 }
+// 11/19：2コマ残れる日をカレンダーの形で（月〜金。授業のない日は灰色）。li.kday の順番は t.放課後 と同じにする（setTwo が順番で探すため）
+function deskCalendar(list){
+  if (!list.length) return '<div class="empty">入れられる日がありません。</div>';
+  const D = s => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
+  const key = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const idx = {}; list.forEach((x, i) => (idx[x.日付] = i));
+  const a = D(list[0].日付), b = D(list[list.length - 1].日付);
+  a.setDate(a.getDate() - ((a.getDay() + 6) % 7)); b.setDate(b.getDate() + (5 - (b.getDay() || 7)));
+  const today = key(new Date());
+  let html = '<div class="dk-cal-h">' + ['月', '火', '水', '木', '金'].map(w => '<div>' + w + '</div>').join('') + '</div><ul class="dk-cal">';
+  for (const d = new Date(a); d <= b; d.setDate(d.getDate() + 1)) {
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
+    const k = key(d), i = idx[k], md = (d.getDate() === 1 || +d === +a ? (d.getMonth() + 1) + '/' : '') + d.getDate();
+    if (i === undefined) { html += '<li class="dk-off"><span class="dn">' + md + '</span><span class="by">' + (k < today ? '' : '授業なし') + '</span></li>'; continue; }
+    const x = list[i];
+    html += '<li class="kday' + (x.二コマ ? ' on' : '') + (k === today ? ' today' : '') + '"><span class="dn">' + md + (k === today ? '<em>今日</em>' : '') + '</span>'
+      + '<button class="two" aria-pressed="' + x.二コマ + '" onclick="setTwo(' + i + ')">' + (x.二コマ ? '✓ 2コマ残れる' : '2コマ残れる') + '</button>'
+      + '<span class="by">' + (x.その日 === 2 ? '2コマ可：' + esc(x.二コマの先生.join('・')) : '1コマまで') + '</span></li>';
+  }
+  return html + '</ul>';
+}
 function renderDesk(){
   const t = state.data.teacher;
   deskWas = true;
@@ -870,8 +902,7 @@ function renderDesk(){
   const page = state.tpage && state.tpage !== 'renraku' ? state.tpage : 'home';
   const tb = teacherBookings(), y = t.予約 || { 承認待ち: [], 次の日の予約: [], 次の日: '' };
   const wait = (y.承認待ち || []).filter(b => b.押せる).length, two = t.放課後.filter(x => x.二コマ).length;
-  const days = '<ul class="dk-days">' + t.放課後.map((x, i) => '<li class="kday"><span class="date">' + esc(x.表示) + '</span>'
-    + '<button class="two" aria-pressed="' + x.二コマ + '" onclick="setTwo(' + i + ')">' + (x.二コマ ? '✓ 2コマ残れる' : '2コマ残れる') + '</button>' + dayStatus(x) + '</li>').join('') + '</ul>';
+  const days = deskCalendar(t.放課後);
   let title, sub = '', body;
   if (page === 'wait') { title = '補習の承認'; sub = '2コマ目（〜18:10）の予約は、承認すると確定します'; body = card('book', '承認待ちの予約', tb.wait); }
   else if (page === 'book') { title = '補習の予約'; sub = esc(y.次の日 || '') + 'の予約（1コマ目・朝補習はその場で確定）'; body = card('list', tb.title || '次の授業日の補習の予約', tb.next); }
