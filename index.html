@@ -207,6 +207,8 @@
   details.fold>summary h2{margin:0}details.fold[open]>summary h2{margin-bottom:12px}
   .fold-hint{margin-left:auto;font-size:12.5px;font-weight:500;color:var(--sub)}
   .fold-mark{font-size:13px;color:var(--sub);transition:transform .15s;transform:rotate(-90deg)}details.fold[open] .fold-mark{transform:none}
+  .rkdone{margin-top:8px;border:1.5px solid var(--green);color:var(--green);border-radius:10px;padding:7px 12px;font-weight:700;font-size:14.5px}
+  .rkdone span{font-weight:500;font-size:13px}.rkdone small{display:block;font-weight:500;font-size:12px;color:var(--sub)}
   .peekbar{background:#fff4d6;color:#7a5a00;font-size:13px;font-weight:700;text-align:center;padding:6px}
   .seg{flex-wrap:wrap}
 </style>
@@ -461,7 +463,7 @@ function renderMypage(){
   // 11/18：三者面談の予約（案内が届いたクラスだけ）。保護者は一番上に出す
   const mendan = p.面談 ? card('flag', '三者面談', mendanParent(p)) : '';
   // 11/18 版43：学校からの連絡（先生・事務が先生用の画面から送ったもの）。「確認しました」がまだのものがあれば一番上、なければ出欠の下
-  const rk = renrakuCard(p), rkTop = (p.連絡 || []).some(x => x.確認つき && !x.確認済み);
+  const rk = renrakuCard(p), rkTop = state.rkKeepTop || (p.連絡 || []).some(x => x.確認つき && !x.確認済み);   // 押した直後は、上に置いたまま（下へ動くと分かりにくいので）
   const secs = parent
     ? [rkTop ? rk : '', mendan, card('cal', '今年度の出欠', pick('出欠', stats)), rkTop ? '' : rk,
        on('直近の記録') ? card('list', '直近2週間の記録', recent) : '',
@@ -757,10 +759,11 @@ function renrakuCard(p){
   const list = p.連絡 || [];
   if (!list.length) return '';
   const item = r => '<div class="notice"><div class="d">' + esc(r.日時) + (r.種類 === '緊急' ? ' <span class="tag t-欠席">緊急</span>' : '') + '</div>'
-    + '<div class="tt">' + esc(r.タイトル) + '</div><p style="white-space:pre-wrap">' + esc(r.本文) + '</p>'
+    + '<p style="white-space:pre-wrap">' + esc(r.本文) + '</p>'   /* 11/19：題名は管理用なので出さない */
     + '<div style="font-size:12.5px;color:var(--sub);margin-top:2px">' + esc(r.差出人) + '</div>'
-    + (r.確認つき ? (r.確認済み ? '<div class="ok" style="margin-top:6px;padding:6px 10px">確認しました</div>'
-        : '<button class="btn" style="margin-top:8px;padding:10px" onclick="renrakuOk(\'' + esc(r.id) + '\',this)">確認しました</button>') : '') + '</div>';
+    /* 11/19：押したあとは「✓ 確認済み（日時）」にして、ボタンと見分けられるように（以前は押したあとも「確認しました」の字で、押せるボタンに見えた） */
+    + (r.確認つき ? (r.確認済み ? '<div class="rkdone">✓ 確認済み' + (r.確認日時 ? '<span>（' + esc(r.確認日時) + '）</span>' : '') + '<small>学校に伝わっています</small></div>'
+        : '<div style="font-size:13px;color:var(--amber);margin-top:8px;font-weight:700">お読みになったら、下のボタンを押してください</div><button class="btn" style="margin-top:4px;padding:10px" onclick="renrakuOk(\'' + esc(r.id) + '\',this)">確認しました</button>') : '') + '</div>';
   const head = list.slice(0, 3), rest = list.slice(3);
   return card('bell', '学校からの連絡', head.map(item).join('')
     + (rest.length ? '<details class="done"><summary>以前の連絡（' + rest.length + '件）</summary>' + rest.map(item).join('') + '</details>' : ''));
@@ -770,7 +773,7 @@ async function renrakuOk(id, btn){
   const p = curPerson(); btn.disabled = true;
   try{
     const r = await api('renraku_ok', { id, sid: p.学籍番号 }); if (!r.ok) throw new Error(r.error);
-    (p.連絡 || []).forEach(x => { if (x.id === id) x.確認済み = true; }); save(state.data);
+    (p.連絡 || []).forEach(x => { if (x.id === id) { x.確認済み = true; x.確認日時 = r.確認日時 || ''; } }); save(state.data); state.rkKeepTop = true;
     const y = window.scrollY; renderMypage(); window.scrollTo(0, y); toast(r.message);
   }catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
 }
@@ -784,7 +787,7 @@ async function openRenraku(){
   const k = rkState(); k.detail = null; k.sure = false;
   app.innerHTML = rkHead() + '<div class="wrap"><div class="center" style="min-height:40vh"><div class="spinner"></div><div>名簿を読み込んでいます…</div></div></div>';
   window.scrollTo(0, 0);
-  try{ const r = await api('renraku_init'); if (!r.ok) throw new Error(r.error); rkMerge(k, r); renderRenraku(); }
+  try{ const r = await api('renraku_init'); if (!r.ok) throw new Error(r.error); rkMerge(k, r); renderRenraku(); rkQuota(); }
   catch(e){ app.innerHTML = rkHead() + '<div class="wrap"><div class="err">' + esc(String(e && e.message ? e.message : e)) + '</div></div>'; }
 }
 function rkHead(){
@@ -798,12 +801,13 @@ function renderRenraku(){
   const k = state.rk, d = k.data;
   document.body.dataset.mode = 'teacher';
   const tabs = '<div class="seg" style="margin-bottom:4px"><button aria-pressed="' + (k.tab === 'make') + '" onclick="state.rk.tab=\'make\';state.rk.detail=null;renderRenraku()">新しい連絡</button>'
-    + '<button aria-pressed="' + (k.tab === 'sent') + '" onclick="state.rk.tab=\'sent\';state.rk.detail=null;renderRenraku()">送った連絡（' + d.送った.length + '）</button></div>';
+    + '<button aria-pressed="' + (k.tab === 'sent') + '" onclick="state.rk.tab=\'sent\';state.rk.detail=null;renderRenraku()">送った連絡</button></div>';
   let body;
   if (k.tab === 'sent') body = k.detail ? rkDetail() : rkSent();
   else body = rkMake();
   app.innerHTML = rkHead() + '<div class="wrap"><div class="card first" style="padding:10px 12px">' + tabs + '</div>' + body + footer() + '</div>';
   if (k.tab === 'make') rkPreview();
+  if (k.tab === 'sent' && !k.detail && !k.sent) rkLoadSent();
 }
 function seg(name, vals, cur, fn){
   return '<div class="seg">' + vals.map(v => '<button aria-pressed="' + (v === cur) + '" onclick="' + fn + '(\'' + v + '\')">' + v + '</button>').join('') + '</div>';
@@ -820,12 +824,12 @@ function rkMake(){
         ? '<b>緊急</b>は、夜でもすぐに届きます。休校など、本当に急ぐときだけ使ってください。LINEの文の頭に【緊急】が付きます。'
         : '<b>お知らせ</b>を夜（21:00〜7:00）に送ると、翌朝7:30ごろに届けます。') + '</div>');
   const to = card('list', '宛先（学生を選ぶ）', rkRoster());
-  const text = card('doc', '連絡の文',
-    '<div class="form"><label>タイトル<input id="rk_t" maxlength="60" placeholder="例：奨学金の書類の提出について" value="' + esc(f.タイトル) + '" oninput="state.rk.form.タイトル=this.value;state.rk.sure=false;rkPreview()"></label>'
-    + '<label>本文<textarea id="rk_b" rows="7" maxlength="1500" style="display:block;width:100%;margin-top:4px;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:8px" placeholder="宛名（○○さんの保護者の方へ）と学校名・返信できない旨は自動で付きます" oninput="state.rk.form.本文=this.value;state.rk.sure=false;rkPreview()">' + esc(f.本文) + '</textarea></label>'
+  const text = card('doc', '連絡の文', rkTpl()
+    + '<div class="form"><label>本文<textarea id="rk_b" rows="7" maxlength="1500" style="display:block;width:100%;margin-top:4px;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:8px" placeholder="宛名（○○さんの保護者の方へ）と学校名・返信できない旨は自動で付きます。本文の中で学生の名前を出したいところは {名前} と書くと「○○さん」に変わります" oninput="state.rk.form.本文=this.value;state.rk.sure=false;rkPreview()">' + esc(f.本文) + '</textarea></label>'
+    + '<label>題名<span style="font-weight:500;font-size:12.5px;color:var(--sub)">（送った連絡を探すための名前。相手には表示されません。空なら本文の1行目）</span><input id="rk_t" maxlength="60" placeholder="例：奨学金の書類（給付）" value="' + esc(f.タイトル) + '" oninput="state.rk.form.タイトル=this.value;state.rk.sure=false"></label>'
     + '<label class="chk" style="margin-top:10px"><input type="checkbox"' + (f.確認 ? ' checked' : '') + ' onchange="state.rk.form.確認=this.checked;state.rk.sure=false;rkPreview()"> 「確認しました」ボタンを付ける</label>'
     + '<div style="font-size:12.5px;color:var(--sub)">受け取った人のマイページにボタンが出て、確認した人・まだの人が「送った連絡」で分かります（書類の提出など）。</div></div>');
-  const prev = card('bell', '送る前の確認', '<div id="rk_prev"></div>');
+  const prev = card('bell', '送る前の確認', '<div id="rk_prev"></div>') + rkTplSave();
   return kind + to + text + prev;
 }
 function rkRoster(){
@@ -871,6 +875,53 @@ function rkRoster(){
     + '<div style="font-size:13.5px;margin-bottom:4px">選んだ学生：<b>' + k.sel.size + '人</b>　<span style="color:var(--sub);font-size:12.5px">保＝LINEに登録している保護者の数、学＝学生の登録</span></div>'
     + '<div id="rk_cls">' + (cls || '<div class="empty">' + (d.全校 && !k.dept ? '上で学科を選ぶと、名簿が出ます。' : '名簿がありません。') + '</div>') + '</div>' + save + manage;
 }
+// 11/19：定型文（はじめから入っているもの＋保存したもの）。{会社名} などの欄を入れて「文に入れる」
+// 11/19：送り主の肩書き（宛先がすべて自分の担任クラスなら「担任」）
+function rkFrom(sel){ const c = state.rk.data.差出人; if (typeof c === 'string') return c; const cls = [...new Set(sel.map(s => s.クラス))]; return c.担任 && cls.length && cls.every(x => c.担任のクラス.includes(x)) ? c.担任 : c.既定; }
+function rkTplFields(t){ return [...new Set(((t.題名 || '') + '\n' + t.本文).match(/\{[^}]+\}/g) || [])].map(x => x.slice(1, -1)).filter(x => x !== '名前'); }
+function rkTpl(){
+  const k = state.rk, list = k.data.定型文 || [];
+  if (!list.length) return '';
+  const t = k.tpl != null ? list[k.tpl] : null, v = k.tplv || {};
+  return '<div class="choose" style="margin:0 0 10px"><div style="font-size:14px;font-weight:700">定型文から入れる</div>'
+    + '<select style="font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;width:100%;margin-top:6px" onchange="state.rk.tpl=this.value===\'\'?null:Number(this.value);state.rk.tplv={};rkReRoster()">'
+    + '<option value="">（選ばない）</option>' + list.map((x, i) => '<option value="' + i + '"' + (k.tpl === i ? ' selected' : '') + '>' + esc(x.名前) + (x.決まり ? '' : x.自分の ? '' : '（' + esc(x.先生) + '）') + '</option>').join('') + '</select>'
+    + (t ? '<div class="form">' + rkTplFields(t).map(f => '<label>' + esc(f) + '<input data-f="' + esc(f) + '" value="' + esc(v[f] || '') + '" oninput="(state.rk.tplv=state.rk.tplv||{})[this.dataset.f]=this.value"></label>').join('')
+      + '<button class="btn" style="margin-top:10px;padding:10px" onclick="rkTplApply()">文に入れる</button>'
+      + (!t.決まり && t.自分の ? '<button class="mini" style="margin:8px 0 0" onclick="rkTplDel(\'' + esc(t.id) + '\',this)">この定型文を消す</button>' : '')
+      + '<div style="font-size:12.5px;color:var(--sub);margin-top:6px">空のままの欄がある行は、文から外します。</div></div>' : '')
+    + '</div>';
+}
+function rkTplApply(){
+  const k = state.rk, t = k.data.定型文[k.tpl], v = k.tplv || {};
+  const fill = str => String(str || '').split('\n').filter(line => !(line.match(/\{[^}]+\}/g) || []).some(m => m !== '{名前}' && !String(v[m.slice(1, -1)] || '').trim()))
+    .join('\n').replace(/\{([^}]+)\}/g, (m, key) => key === '名前' ? m : String(v[key] || '').trim());
+  k.form.本文 = fill(t.本文); k.form.タイトル = fill(t.題名); k.form.相手 = t.相手 || k.form.相手; k.form.確認 = !!t.確認つき; k.sure = false;
+  rkReRoster(); toast('定型文を入れました。文を確かめてください');
+}
+function rkTplSave(){
+  const d = state.rk.data;
+  return '<details class="done" style="margin-top:10px"><summary>今の文を定型文として保存する</summary><div class="form">'
+    + '<label>定型文の名前<input id="rk_tn" maxlength="40" placeholder="例：奨学金の書類の案内"></label>'
+    + '<label class="chk" style="margin-top:8px"><input type="checkbox" id="rk_ts"> ' + (d.全校 ? '同じ部署（事務・管理職）の人と共有する' : '同じ学科の先生と共有する') + '</label>'
+    + '<div style="font-size:12.5px;color:var(--sub)">本文・題名・送る相手・確認ボタンを保存します。会社名など毎回変わる所は {会社名} のように書くと、選んだときに入れる欄になります。</div>'
+    + '<button class="btn ghost" style="margin-top:8px;padding:10px" onclick="rkTplSaveGo(this)">保存する</button></div></details>';
+}
+async function rkTplSaveGo(btn){
+  const k = state.rk, f = k.form, name = document.getElementById('rk_tn').value.trim();
+  if (!name) return toast('定型文の名前を入れてください', true);
+  btn.disabled = true;
+  try{ const r = await api('renraku_tpl_save', { 名前: name, 共有: document.getElementById('rk_ts').checked, 相手: f.相手, 確認: f.確認, 題名: f.タイトル, 本文: f.本文 }); if (!r.ok) throw new Error(r.error);
+    k.data.定型文 = r.定型文 || k.data.定型文; rkReRoster(); toast(r.message); }
+  catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
+}
+async function rkTplDel(id, btn){
+  if (btn.dataset.sure !== '1'){ btn.dataset.sure = '1'; btn.textContent = 'もう一度押すと消します'; return; }
+  btn.disabled = true;
+  try{ const r = await api('renraku_tpl_delete', { id }); if (!r.ok) throw new Error(r.error); state.rk.tpl = null;
+    state.rk.data.定型文 = r.定型文 || state.rk.data.定型文; rkReRoster(); toast(r.message); }
+  catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
+}
 function rkReRoster(){ const y = window.scrollY; renderRenraku(); window.scrollTo(0, y); }
 let rkTimer = null;
 function rkSearch(v){ state.rk.q = v; clearTimeout(rkTimer); rkTimer = setTimeout(() => { rkReRoster(); const i = document.getElementById('rk_q'); if (i){ i.focus(); i.setSelectionRange(v.length, v.length); } }, 300); }
@@ -883,7 +934,17 @@ async function rkGroup(gi){
   k.sel = new Set(g.学籍番号.filter(s => have.has(s))); k.sure = false; rkReRoster(); toast('「' + g.名前 + '」の' + k.sel.size + '人を選びました');
 }
 // 11/19：全校の人の学科の名簿（読んだ学科は覚えておく）
-function rkMerge(k, r){ const keep = k.data && k.data.全校 ? k.data.クラス.filter(c => k.loaded[c.学科]) : []; k.data = r; if (r.全校) { k.data.クラス = keep; } else k.loaded = {}; }
+function rkMerge(k, r){ const keep = k.data && k.data.全校 ? k.data.クラス.filter(c => k.loaded[c.学科]) : [], q = k.data && k.data.通数; k.data = r; if (q && !r.通数) r.通数 = q; if (r.全校) { k.data.クラス = keep; } else k.loaded = {}; }
+// 11/19：速さのため、LINEの送信数と送った連絡は、画面を出してから別に読む
+async function rkQuota(){ try { const r = await api('renraku_quota'); if (r.ok && state.rk && state.rk.data) { state.rk.data.通数 = r.通数; rkPreview(); } } catch(e){} }
+async function rkLoadSent(){
+  const k = state.rk, q = k.sentQ || '';
+  try { const r = await api('renraku_sent', { q }); if (!r.ok) throw new Error(r.error); if ((k.sentQ || '') !== q) return; k.sent = r.送った; }
+  catch(e){ k.sent = []; toast(String(e && e.message ? e.message : e), true); }
+  if (k.tab === 'sent' && !k.detail) { const y = window.scrollY; renderRenraku(); window.scrollTo(0, y); }
+}
+let rkSentTimer = null;
+function rkSentSearch(v){ const k = state.rk; k.sentQ = v; clearTimeout(rkSentTimer); rkSentTimer = setTimeout(() => { k.sent = null; renderRenraku(); const i = document.getElementById('rk_sq'); if (i){ i.focus(); i.setSelectionRange(v.length, v.length); } }, 500); }
 async function rkLoad(dep){
   const k = state.rk; const r = await api('renraku_dept', { 学科: dep }); if (!r.ok) throw new Error(r.error);
   k.data.クラス = k.data.クラス.filter(c => c.学科 !== dep).concat(r.クラス); k.loaded[dep] = true;
@@ -905,14 +966,14 @@ async function rkGroupSave(btn){
   if (!name) return toast('グループの名前を入れてください', true);
   btn.disabled = true;
   try{ const r = await api('renraku_group_save', { 名前: name, 共有: share, sids: [...k.sel], 学科たち: rkDepts() }); if (!r.ok) throw new Error(r.error);
-    const r2 = await api('renraku_init'); if (r2.ok) rkMerge(k, r2); rkReRoster(); toast(r.message); }
+    k.data.グループ = r.グループ || k.data.グループ; rkReRoster(); toast(r.message); }
   catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
 }
 async function rkGroupDel(id, btn){
   if (btn.dataset.sure !== '1'){ btn.dataset.sure = '1'; btn.textContent = 'もう一度押すと消します'; return; }
   btn.disabled = true;
   try{ const r = await api('renraku_group_delete', { id }); if (!r.ok) throw new Error(r.error);
-    const r2 = await api('renraku_init'); if (r2.ok) rkMerge(state.rk, r2); rkReRoster(); toast(r.message); }
+    state.rk.data.グループ = r.グループ || state.rk.data.グループ; rkReRoster(); toast(r.message); }
   catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
 }
 function rkPeekOpen(sid){ const k = state.rk; k.peekSid = k.peekSid === sid ? '' : sid; rkReRoster(); }
@@ -944,14 +1005,14 @@ function rkPreview(){
       + (noS.length ? '<details><summary>学生が未登録：' + noS.length + '人</summary>' + noS.map(s => esc(s.氏名)).join('、') + '</details>' : '') + '</div>';
   }
   if (q) html += '<div style="font-size:12.5px;color:' + (over ? 'var(--red)' : 'var(--sub)') + ';margin-top:6px">LINEの今月の送信数：' + q.使った + '通' + (q.上限 != null ? '／上限' + q.上限 + '通（あと' + Math.max(0, q.上限 - q.使った) + '通）' : '') + '</div>';
-  if (sel.length && (f.タイトル || f.本文)){
+  if (sel.length && f.本文){
     const s0 = sel[0], who = (f.相手 === '学生' ? s0.氏名 + 'さんへ' : s0.氏名 + 'さんの保護者の方へ');
-    const text = '【鹿児島工学院専門学校】' + (f.種類 === '緊急' ? '【緊急】' : '') + '\n' + f.タイトル + '\n\n' + who + '\n' + f.本文 + '\n\n（' + d.差出人 + '）\n'
+    const text = '【鹿児島工学院専門学校】' + (f.種類 === '緊急' ? '【緊急】' : '') + '\n\n' + who + '\n' + f.本文.replace(/\{名前\}/g, s0.氏名 + 'さん') + '\n\n（' + rkFrom(sel) + '）\n'
       + (f.確認 ? '▼お読みになったら、マイページで「確認しました」を押してください\n' : '▼マイページでも見られます\n') + '（マイページのリンク）\n※このメッセージには返信できません。'
       + (f.相手 === '学生' ? '用件は担任の先生へ。' : 'ご用件は、学校（' + TEL + '／平日8:30〜17:00）へお電話ください。');
     html += '<div style="font-size:13px;margin-top:10px;color:var(--sub)">届くLINEの文（' + esc(s0.氏名) + 'さんの' + (f.相手 === '学生' ? '' : '保護者の') + '例）</div><div class="bubble">' + esc(text) + '</div>';
   }
-  const ready = sel.length && f.タイトル.trim() && f.本文.trim() && n > 0 && !over;
+  const ready = sel.length && f.本文.trim() && n > 0 && !over;
   html += (night ? '<div class="note">今は夜なので、明日の朝7:30ごろに届けます。</div>' : '')
     + '<button class="btn" id="rk_go" style="margin-top:12px' + (k.sure ? ';background:var(--red)' : '') + '"' + (ready ? '' : ' disabled') + ' onclick="rkSend(this)">'
     + (k.sure ? 'もう一度押すと送ります（' + n + '通）' : (f.種類 === '緊急' ? '緊急の連絡を送る' : '連絡を送る')) + '</button>'
@@ -965,16 +1026,17 @@ async function rkSend(btn){
   try{
     const r = await api('renraku_send', { 種類: f.種類, 相手: f.相手, タイトル: f.タイトル, 本文: f.本文, 確認: f.確認, sids: [...k.sel], 学科たち: rkDepts() });
     if (!r.ok) throw new Error(r.error);
-    k.form = RK_NEW(); k.sel = new Set(); k.sure = false; k.tab = 'sent';
-    const r2 = await api('renraku_init'); if (r2.ok) rkMerge(k, r2);
-    renderRenraku(); window.scrollTo(0, 0); toast(r.message);
+    k.form = RK_NEW(); k.sel = new Set(); k.sure = false; k.tab = 'sent'; k.sent = null; k.sentQ = ''; k.tpl = null;
+    renderRenraku(); window.scrollTo(0, 0); toast(r.message); rkQuota();
   }catch(e){ k.sure = false; rkPreview(); toast(String(e && e.message ? e.message : e), true); }
 }
 // 送った連絡
 function rkSent(){
-  const list = state.rk.data.送った || [];
-  if (!list.length) return card('list', '送った連絡', '<div class="empty">まだ送った連絡はありません。</div>');
-  return card('list', '送った連絡', '<ul class="list">' + list.map((x, i) => '<li style="cursor:pointer" onclick="rkOpenDetail(\'' + esc(x.id) + '\')"><span class="date">' + esc(x.日時.replace(/（.*?）/, '')) + '</span>'
+  const k = state.rk, list = k.sent;
+  const search = '<input id="rk_sq" placeholder="題名・本文の言葉でさがす" value="' + esc(k.sentQ || '') + '" oninput="rkSentSearch(this.value)" style="width:100%;font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px">';
+  if (!list) return card('list', '送った連絡', search + '<div class="center" style="min-height:120px"><div class="spinner"></div><div>読み込んでいます…</div></div>');
+  if (!list.length) return card('list', '送った連絡', search + '<div class="empty">' + (k.sentQ ? '見つかりませんでした。' : 'まだ送った連絡はありません。') + '</div>');
+  return card('list', '送った連絡', search + '<ul class="list">' + list.map((x, i) => '<li style="cursor:pointer" onclick="rkOpenDetail(\'' + esc(x.id) + '\')"><span class="date">' + esc(x.日時.replace(/（.*?）/, '')) + '</span>'
     + '<span class="body">' + (x.種類 === '緊急' ? '<span class="tag t-欠席" style="margin-right:4px">緊急</span>' : '') + esc(x.タイトル)
     + '<div class="s">' + esc(x.相手) + '・' + x.人数 + '人 → ' + (x.状態 === '朝に送る' ? '明日の朝に届けます' : x.送った数 + '通' + (x.届かなかった数 ? '（届かず' + x.届かなかった数 + '）' : '')) + (x.自分の ? '' : '　送った人：' + esc(x.先生)) + '</div></span>'
     + (x.確認つき ? '<span class="tag ' + (x.確認数 >= x.人数 ? 't-済' : 't-確認中') + '">確認 ' + x.確認数 + '/' + x.人数 + '</span>' : '') + '</li>').join('') + '</ul>'
@@ -1017,7 +1079,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版48' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版51' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
