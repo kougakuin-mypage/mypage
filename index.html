@@ -332,6 +332,24 @@
   .ph-msg{background:#fff;border-radius:16px;border-top-left-radius:4px;padding:10px 12px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word;max-width:94%}
   .ph-empty{color:#fff;font-size:13px;text-align:center;margin-top:110px;line-height:1.7;opacity:.95}
   .ph-cap{text-align:center;font-size:12px;color:var(--sub);margin-top:6px}
+  /* 11/19 版58：案B（3列） */
+  .rk-b{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 330px;gap:16px;align-items:start;margin-top:14px}
+  .rk-right{position:sticky;top:12px}
+  .rk-b .rk-side{position:static}
+  .rk-b .ph-body{min-height:220px;max-height:340px}
+  .rk-b .phone{width:280px}
+  .rk-send{margin-top:12px;padding:14px 16px}
+  .rk-send .btn{margin-top:8px}
+  .rk-b .rk-q{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .rk-acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}.rk-acts .mini{margin:0;font-weight:500;font-size:12.5px}
+  .rk-b .rk-opts .chk{flex-wrap:wrap}.rk-b .rk-opts .chk .rk-hint{flex-basis:100%;margin:0 0 0 28px}
+  .rk-draftnote{background:var(--amber-soft);color:#8a5a12;border-radius:8px;padding:6px 10px;font-size:13px;margin-bottom:10px}
+  .rk-b .rk-q{font-size:18px}
+  @media (max-width:1350px){
+    .rk-b{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+    .rk-right{grid-column:1 / -1;position:static;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .rk-right .rk-send{margin-top:0}
+  }
   .dk-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;list-style:none;padding:0;margin:0}
   .dk-days li.kday{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
   .peekbar{background:#fff4d6;color:#7a5a00;font-size:13px;font-weight:700;text-align:center;padding:6px}
@@ -951,7 +969,7 @@ async function openRenraku(){
   try{ const r = await api('renraku_init'); if (!r.ok) throw new Error(r.error); rkMerge(k, r); renderRenraku(); rkQuota(); }
   catch(e){ app.innerHTML = rkHead() + '<div class="wrap"><div class="err">' + esc(String(e && e.message ? e.message : e)) + '</div></div>'; }
 }
-const PAGE_VER = '2026-11-19 版57';   // 画面の版（直したらここを変える）
+const PAGE_VER = '2026-11-19 版58';   // 画面の版（直したらここを変える）
 // ---------- 11/19 版54：PCの先生の画面（左にメニュー・右に中身） ----------
 function isDesk(){ try { return document.body.dataset.mode === 'teacher' && !state.peek && window.matchMedia('(min-width: 900px)').matches; } catch(_) { return false; } }
 let deskTimer = null, deskWas = null;
@@ -1039,10 +1057,10 @@ function renderRenraku(){
   const k = state.rk, d = k.data;
   document.body.dataset.mode = 'teacher';
   if (isDesk()) {   // 11/19 版54：PCは左のメニューの中に出す
-    const tabs0 = '<div class="seg" style="margin-top:14px;max-width:420px"><button aria-pressed="' + (k.tab === 'make') + '" onclick="state.rk.tab=\'make\';state.rk.detail=null;renderRenraku()">新しい連絡</button>'
-      + '<button aria-pressed="' + (k.tab === 'sent') + '" onclick="state.rk.tab=\'sent\';state.rk.detail=null;renderRenraku()">送った連絡</button></div>';
-    const body0 = k.tab === 'sent' ? (k.detail ? rkDetail() : rkSent()) : rkMake();
-    app.innerHTML = deskShell('renraku', '保護者・学生への連絡', '送れる範囲：' + esc(d.範囲), tabs0 + (k.tab === 'sent' ? '<div style="max-width:820px">' + body0 + '</div>' : body0));
+    const tb = (key, label) => '<button aria-pressed="' + (k.tab === key) + '" onclick="state.rk.tab=\'' + key + '\';state.rk.detail=null;renderRenraku()">' + label + '</button>';
+    const tabs0 = '<div class="seg" style="margin-top:14px;max-width:520px">' + tb('make', k.draftId ? '連絡を作る（下書き）' : '新しい連絡') + tb('draft', '下書き' + ((d.下書き || []).length ? '（' + d.下書き.length + '）' : '')) + tb('sent', '送った連絡') + '</div>';
+    const body0 = k.tab === 'sent' ? (k.detail ? rkDetail() : rkSent()) : k.tab === 'draft' ? rkDrafts() : rkMake();
+    app.innerHTML = deskShell('renraku', '保護者・学生への連絡', '送れる範囲：' + esc(d.範囲), tabs0 + (k.tab !== 'make' ? '<div style="max-width:860px">' + body0 + '</div>' : body0));
     if (k.tab === 'make') rkPreview();
     if (k.tab === 'sent' && !k.detail && !k.sent) rkLoadSent();
     return;
@@ -1159,7 +1177,7 @@ function rkTplApply(){
 }
 function rkTplSave(){
   const d = state.rk.data;
-  return '<details class="done" style="margin-top:10px"><summary>今の文を定型文として保存する</summary><div class="form">'
+  return '<details class="done" style="margin-top:10px"' + (state.rk.tplOpen ? ' open' : '') + '><summary>今の文を定型文として保存する</summary><div class="form">'
     + '<label>定型文の名前<input id="rk_tn" maxlength="40" placeholder="例：奨学金の書類の案内"></label>'
     + '<label class="chk" style="margin-top:8px"><input type="checkbox" id="rk_ts"> ' + (d.全校 ? '同じ部署（事務・管理職）の人と共有する' : '同じ学科の先生と共有する') + '</label>'
     + '<div style="font-size:12.5px;color:var(--sub)">本文・題名・送る相手・確認ボタンを保存します。会社名など毎回変わる所は {会社名} のように書くと、選んだときに入れる欄になります。</div>'
@@ -1170,7 +1188,7 @@ async function rkTplSaveGo(btn){
   if (!name) return toast('定型文の名前を入れてください', true);
   btn.disabled = true;
   try{ const r = await api('renraku_tpl_save', { 名前: name, 共有: document.getElementById('rk_ts').checked, 相手: f.相手, 確認: f.確認, 題名: f.タイトル, 本文: f.本文 }); if (!r.ok) throw new Error(r.error);
-    k.data.定型文 = r.定型文 || k.data.定型文; rkReRoster(); toast(r.message); }
+    k.data.定型文 = r.定型文 || k.data.定型文; k.tplOpen = false; rkReRoster(); toast(r.message); }
   catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
 }
 async function rkTplDel(id, btn){
@@ -1195,24 +1213,57 @@ function rkStep(n){
   if (n >= 3 && !k.form.本文.trim()) return toast('先に、本文を書いてください', true);
   k.step = n; k.sure = false; renderRenraku(); window.scrollTo(0, 0);
 }
+// 11/19 版58：PCは「案B」＝1画面に3列（左：だれに　真ん中：どんな連絡　右：まとめ・届くLINEの見た目・送る）
+//   （版57は ①→②→③ の段階に分ける形だったが、比べた結果こちらに決めた）。下書き保存・定型文の保存も真ん中から
 function rkMakeDesk(){
-  const k = state.rk, f = k.form, step = k.step || 1;
-  const names = ['宛先を選ぶ', '文を書く', '確かめて送る'];
-  const stepper = '<div class="rk-steps">' + names.map((l, i) => '<button class="' + (i + 1 === step ? 'on' : i + 1 < step ? 'done' : '') + '" onclick="rkStep(' + (i + 1) + ')"><span>' + (i + 1 < step ? '✓' : i + 1) + '</span>' + l + '</button>').join('<i></i>') + '</div>';
-  let main;
-  if (step === 1) main = '<div class="rk-panel"><div class="rk-q">だれに送りますか</div>'
-    + '<div class="rk-row"><span class="lb">送る相手</span>' + seg('相手', ['保護者', '学生', '両方'], f.相手, 'rkSetAite') + '</div>' + rkRoster() + '</div>';
-  else if (step === 2) main = '<div class="rk-panel"><div class="rk-q">どんな連絡ですか</div>' + rkTpl()
-    + '<textarea id="rk_b" rows="10" maxlength="1500" class="rk-ta" placeholder="ここに本文を書きます。宛名・学校名・返信できない旨は自動で付きます。\n学生の名前を出したいところは {名前} と書くと「○○さん」に変わります。" oninput="state.rk.form.本文=this.value;state.rk.sure=false;rkSide()">' + esc(f.本文) + '</textarea>'
+  const k = state.rk, f = k.form;
+  const left = '<div class="rk-panel"><div class="rk-q">① だれに</div><div class="rk-row"><span class="lb">送る相手</span>' + seg('相手', ['保護者', '学生', '両方'], f.相手, 'rkSetAite') + '</div>' + rkRoster() + '</div>';
+  const mid = '<div class="rk-panel"><div class="rk-q">② どんな連絡<span class="rk-acts">'
+      + '<button class="mini" onclick="rkDraftSave(this)">' + (k.draftId ? '下書きを上書き保存' : '下書きに保存') + '</button>'
+      + '<button class="mini" onclick="state.rk.tplOpen=!state.rk.tplOpen;rkReRoster()">定型文として保存</button></span></div>'
+    + (k.draftId ? '<div class="rk-draftnote">下書きの続きを書いています　<a href="#" onclick="rkNew();return false;">新しく作り直す</a></div>' : '')
+    + (k.tplOpen ? rkTplSave() : '') + rkTpl()
+    + '<textarea id="rk_b" rows="11" maxlength="1500" class="rk-ta" placeholder="ここに本文を書きます。宛名・学校名・返信できない旨は自動で付きます。\n学生の名前を出したいところは {名前} と書くと「○○さん」に変わります。" oninput="state.rk.form.本文=this.value;state.rk.sure=false;rkPreview()">' + esc(f.本文) + '</textarea>'
     + '<div class="rk-opts">'
     + '<div class="rk-row"><span class="lb">種類</span>' + seg('種類', ['お知らせ', '緊急'], f.種類, 'rkSetShurui') + '<span class="rk-hint">' + (f.種類 === '緊急' ? '夜でもすぐ届き、頭に【緊急】が付きます' : '夜に送ると、翌朝7:30ごろに届けます') + '</span></div>'
-    + '<label class="chk"><input type="checkbox"' + (f.確認 ? ' checked' : '') + ' onchange="state.rk.form.確認=this.checked;state.rk.sure=false;rkSide()"> 「確認しました」ボタンを付ける<span class="rk-hint">（読んだかどうかが分かります）</span></label>'
+    + '<label class="chk"><input type="checkbox"' + (f.確認 ? ' checked' : '') + ' onchange="state.rk.form.確認=this.checked;state.rk.sure=false;rkPreview()"> 「確認しました」ボタンを付ける<span class="rk-hint">（読んだかどうかが分かります）</span></label>'
     + '<label class="rk-title">題名<span class="rk-hint">（あとで探すための名前・相手には出ません）</span><input id="rk_t" maxlength="60" placeholder="例：奨学金の書類（給付）" value="' + esc(f.タイトル) + '" oninput="state.rk.form.タイトル=this.value;state.rk.sure=false"></label>'
-    + '</div>' + rkTplSave() + '</div>';
-  else main = '<div class="rk-panel"><div class="rk-q">これで送りますか</div><div id="rk_prev"></div></div>';
-  const nav = '<div class="rk-nav">' + (step > 1 ? '<button class="btn ghost" onclick="rkStep(' + (step - 1) + ')">‹ 戻る</button>' : '<span></span>')
-    + (step < 3 ? '<button class="btn" onclick="rkStep(' + (step + 1) + ')">次へ：' + names[step] + ' ›</button>' : '') + '</div>';
-  return stepper + '<div class="rk-desk2"><div>' + main + nav + '</div><div><div class="rk-side" id="rk_side"></div></div></div>';
+    + '</div></div>';
+  const right = '<div class="rk-side" id="rk_side"></div><div class="rk-panel rk-send"><div class="rk-q" style="font-size:16px;margin-bottom:8px">③ 送る</div><div id="rk_prev"></div></div>';
+  return '<div class="rk-b"><div>' + left + '</div><div>' + mid + '</div><div class="rk-right">' + right + '</div></div>';
+}
+function rkNew(){ const k = state.rk; k.form = RK_NEW(); k.sel = new Set(); k.draftId = null; k.sure = false; k.tab = 'make'; k.tpl = null; renderRenraku(); window.scrollTo(0, 0); }
+async function rkDraftSave(btn){
+  const k = state.rk, f = k.form; btn.disabled = true;
+  try{ const r = await api('renraku_draft_save', { id: k.draftId || '', 相手: f.相手, 種類: f.種類, 確認: f.確認, タイトル: f.タイトル, 本文: f.本文, sids: [...k.sel], 学科たち: rkDepts() }); if (!r.ok) throw new Error(r.error);
+    k.draftId = r.id; k.data.下書き = r.下書き || k.data.下書き; rkReRoster(); toast(r.message); }
+  catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
+}
+function rkDrafts(){
+  const list = state.rk.data.下書き || [];
+  if (!list.length) return card('doc', '下書き', '<div class="empty">下書きはありません。「② どんな連絡」の「下書きに保存」で保存できます。</div>');
+  return card('doc', '下書き（自分だけが見られます）', '<table class="dk-tbl"><tr><th>保存した日時</th><th>題名・本文</th><th>相手</th><th>宛先</th><th></th></tr>'
+    + list.map((x, i) => '<tr><td>' + esc(x.日時) + '</td><td class="t">' + esc(x.題名 || (x.本文.split('\n').find(v => v.trim()) || '（本文なし）').slice(0, 40)) + '</td><td>' + esc(x.相手) + '</td><td>' + x.sids.length + '人</td>'
+      + '<td style="text-align:right;white-space:nowrap"><button class="mini on" style="margin:0 4px 0 0" onclick="rkDraftOpen(' + i + ')">続きを書く</button><button class="mini" style="margin:0" onclick="rkDraftDel(\'' + esc(x.id) + '\',this)">消す</button></td></tr>').join('') + '</table>');
+}
+async function rkDraftOpen(i){
+  const k = state.rk, x = k.data.下書き[i];
+  if (k.data.全校) { for (const dep of (x.学科 || [])) if (!k.loaded[dep]) { try { await rkLoad(dep); } catch(e){ return toast(String(e && e.message ? e.message : e), true); } } if (x.学科 && x.学科[0]) k.dept = x.学科[0]; }
+  const have = new Set(rkAll().map(s => s.sid));
+  k.form = { 種類: x.種類, 相手: x.相手, タイトル: x.題名, 本文: x.本文, 確認: x.確認 }; k.sel = new Set(x.sids.filter(s => have.has(s))); k.draftId = x.id; k.tab = 'make'; k.sure = false;
+  renderRenraku(); window.scrollTo(0, 0); toast('下書きを開きました');
+}
+async function rkDraftDel(id, btn){
+  if (btn.dataset.sure !== '1'){ btn.dataset.sure = '1'; btn.textContent = 'もう一度押すと消します'; return; }
+  btn.disabled = true;
+  try{ const r = await api('renraku_draft_delete', { id }); if (!r.ok) throw new Error(r.error); const k = state.rk; k.data.下書き = r.下書き || []; if (k.draftId === id) k.draftId = null; renderRenraku(); toast(r.message); }
+  catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
+}
+// 送った連絡の文を使い回す（宛先は選び直す）
+function rkReuse(){
+  const k = state.rk, c = k.detail.連絡;
+  k.form = { 種類: c.種類, 相手: c.相手, タイトル: c.タイトル, 本文: c.本文, 確認: !!c.確認つき }; k.sel = new Set(); k.draftId = null; k.tab = 'make'; k.detail = null; k.sure = false;
+  renderRenraku(); window.scrollTo(0, 0); toast('前の文を入れました。宛先を選んでください');
 }
 function rkSide(){
   const el = document.getElementById('rk_side'); if (!el) return;
@@ -1335,9 +1386,10 @@ async function rkSend(btn){
   if (!k.sure){ k.sure = true; rkPreview(); return; }
   btn.disabled = true; btn.textContent = '送っています…';
   try{
-    const r = await api('renraku_send', { 種類: f.種類, 相手: f.相手, タイトル: f.タイトル, 本文: f.本文, 確認: f.確認, sids: [...k.sel], 学科たち: rkDepts() });
+    const r = await api('renraku_send', { 種類: f.種類, 相手: f.相手, タイトル: f.タイトル, 本文: f.本文, 確認: f.確認, sids: [...k.sel], 学科たち: rkDepts(), 下書き: k.draftId || '' });
     if (!r.ok) throw new Error(r.error);
-    k.form = RK_NEW(); k.sel = new Set(); k.sure = false; k.tab = 'sent'; k.step = 1; k.sent = null; k.sentQ = ''; k.tpl = null;
+    if (k.draftId) k.data.下書き = (k.data.下書き || []).filter(x => x.id !== k.draftId);
+    k.form = RK_NEW(); k.sel = new Set(); k.sure = false; k.tab = 'sent'; k.step = 1; k.draftId = null; k.sent = null; k.sentQ = ''; k.tpl = null;
     renderRenraku(); window.scrollTo(0, 0); toast(r.message); rkQuota();
   }catch(e){ k.sure = false; rkPreview(); toast(String(e && e.message ? e.message : e), true); }
 }
@@ -1375,6 +1427,7 @@ function rkDetail(){
   state.rk.yet = yet;
   return card('doc', c.タイトル, '<div class="note" style="margin-top:0">' + esc(c.日時) + '　' + esc(c.種類) + '　' + esc(c.相手) + '<br>送った人：' + esc(c.先生) + '　状態：' + esc(c.状態) + '（' + c.送った数 + '通）</div>'
       + '<div class="bubble" style="margin-top:8px">' + esc(c.本文) + '</div>'
+      + '<button class="btn ghost" style="margin-top:10px;padding:10px" onclick="rkReuse()">この文で新しく作る（宛先は選び直す）</button>'
       + (c.確認つき && yet.length ? '<button class="btn ghost" style="margin-top:10px;padding:10px" onclick="rkResend()">まだ確認していない' + yet.length + '人に、もう一度送る文を作る</button>' : ''))
     + card('list', '届いた人・確認した人', rows || '<div class="empty">見られる学生がいません。</div>')
     + '<a class="link" href="#" onclick="state.rk.detail=null;renderRenraku();return false;">送った連絡の一覧にもどる</a>';
