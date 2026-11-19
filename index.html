@@ -503,10 +503,12 @@ function renderTeacher(){
   app.innerHTML = head + '<div class="wrap">'
     + card('list', tb.title || '次の授業日の補習の予約', tb.next, 'first')
     + card('book', '承認待ちの予約', tb.wait)
-    + rk
+    /* 11/19：並びは 予約 → 承認待ち → 2コマ残れる日 → 連絡 → 三者面談 */
     /* 11/19：三者面談と「2コマ残れる日」は、たたんでおいてタップで開く形に（以前は開いたまま） */
-    + foldCard('mendan', 'flag', '三者面談', mendanHint(t.面談), mendanTeacher(t.面談))
     + foldCard('two', 'cal', '2コマ補習まで残れる日', '入れた日：' + t.放課後.filter(x => x.二コマ).length + '日', hoshu)
+    + rk
+    /* 11/19：三者面談はめったに使わないので一番下に（以前は「2コマ残れる日」の上） */
+    + foldCard('mendan', 'flag', '三者面談', mendanHint(t.面談), mendanTeacher(t.面談))
     + footer() + '</div>';
 }
 async function setTwo(i){
@@ -978,7 +980,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版44' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版46' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
