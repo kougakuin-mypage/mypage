@@ -213,8 +213,42 @@
   @media (min-width: 900px){
     body[data-mode="teacher"] .wrap, body[data-mode="teacher"] header.top .in{max-width:1120px}
     .tgrid,.rkgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start}
-    .rkgrid>div>.card:first-child,.tgrid>div:last-child>.card:first-child{margin-top:14px}
+    .rkgrid>div>.card:first-child{margin-top:14px}
+    .tgrid>div:last-child>.card:first-child{margin-top:-14px}   /* 右の列の一番上も、左とそろえて見出しの帯に少し重ねる */
   }
+
+  /* 11/19 版54：PC（先生の画面・横幅900px以上）は、左にメニュー・右に中身の形（スマホは今までどおり縦並び） */
+  .dk{display:flex;min-height:100vh}
+  .dk-side{width:240px;flex:0 0 240px;background:var(--navy);color:#fff;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;padding:20px 14px}
+  .dk-school{font-size:12.5px;opacity:.8;line-height:1.5}
+  .dk-who{font-size:18px;font-weight:700;margin:14px 0 2px}
+  .dk-who small{display:block;font-size:12.5px;font-weight:500;opacity:.85;margin-top:2px}
+  .dk-nav{margin-top:18px;display:flex;flex-direction:column;gap:4px}
+  .dk-nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;color:#fff;font:inherit;font-size:15px;padding:10px 12px;border-radius:10px;cursor:pointer;opacity:.88}
+  .dk-nav button:hover{background:rgba(255,255,255,.08);opacity:1}
+  .dk-nav button[aria-current="page"]{background:#fff;color:var(--navy);font-weight:700;opacity:1}
+  .dk-nav svg{width:18px;height:18px;flex:0 0 auto}
+  .dk-nav .n{margin-left:auto;background:#e8a33d;color:#fff;border-radius:999px;font-size:12px;font-weight:700;padding:1px 8px}
+  .dk-nav button[aria-current="page"] .n{background:var(--amber);color:#fff}
+  .dk-foot{margin-top:auto;font-size:11px;opacity:.6;line-height:1.5}
+  .dk-main{flex:1;min-width:0;padding:26px 34px 50px}
+  .dk-in{max-width:1100px}
+  .dk-head{display:flex;align-items:flex-end;gap:16px;margin-bottom:6px}
+  .dk-head h1{font-size:23px;margin:0;color:var(--navy)}
+  .dk-head .sub{font-size:13.5px;color:var(--sub);padding-bottom:3px}
+  .dk-main .first{margin-top:14px}
+  .dk-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:14px}
+  .dk-tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;text-align:left;font:inherit;cursor:pointer;color:var(--ink)}
+  .dk-tile:hover{border-color:var(--navy)}
+  .dk-tile .k{font-size:13.5px;color:var(--sub);display:flex;align-items:center;gap:6px}
+  .dk-tile .v{font-size:30px;font-weight:700;color:var(--navy);line-height:1.3;margin-top:4px}
+  .dk-tile .v small{font-size:15px;font-weight:500;margin-left:3px}
+  .dk-tile .h{font-size:12.5px;color:var(--sub)}
+  .dk-tile.alert{border-color:var(--amber);background:#fff8ec}
+  .dk-tile.alert .v{color:var(--amber)}
+  .dk-2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start}
+  .dk-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;list-style:none;padding:0;margin:0}
+  .dk-days li.kday{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
   .peekbar{background:#fff4d6;color:#7a5a00;font-size:13px;font-weight:700;text-align:center;padding:6px}
   .seg{flex-wrap:wrap}
 </style>
@@ -496,6 +530,7 @@ function dayStatus(x){
 function renderTeacher(){
   const d = state.data, t = d.teacher;
   state.peek = null;
+  if (isDesk()) return renderDesk();   // 11/19 版54：PCは左にメニューの形
   document.body.dataset.mode = 'teacher';
   const head = '<header class="top"><div class="in">'
     + '<div class="school">鹿児島工学院専門学校　' + (t.職員 ? '職員用' : '先生用') + '</div>'
@@ -791,10 +826,68 @@ const RK_NEW = () => ({ 種類: 'お知らせ', 相手: '保護者', タイト�
 function rkState(){ return state.rk || (state.rk = { tab: 'make', form: RK_NEW(), sel: new Set(), q: '', open: {}, peekSid: '', detail: null, sure: false, dept: '', loaded: {} }); }
 async function openRenraku(){
   const k = rkState(); k.detail = null; k.sure = false;
-  app.innerHTML = rkHead() + '<div class="wrap"><div class="center" style="min-height:40vh"><div class="spinner"></div><div>名簿を読み込んでいます…</div></div></div>';
+  const wait0 = '<div class="center" style="min-height:40vh"><div class="spinner"></div><div>名簿を読み込んでいます…</div></div>';
+  app.innerHTML = isDesk() ? deskShell('renraku', '保護者・学生への連絡', '', wait0) : rkHead() + '<div class="wrap">' + wait0 + '</div>';
   window.scrollTo(0, 0);
   try{ const r = await api('renraku_init'); if (!r.ok) throw new Error(r.error); rkMerge(k, r); renderRenraku(); rkQuota(); }
   catch(e){ app.innerHTML = rkHead() + '<div class="wrap"><div class="err">' + esc(String(e && e.message ? e.message : e)) + '</div></div>'; }
+}
+const PAGE_VER = '2026-11-19 版54';   // 画面の版（直したらここを変える）
+// ---------- 11/19 版54：PCの先生の画面（左にメニュー・右に中身） ----------
+function isDesk(){ try { return document.body.dataset.mode === 'teacher' && !state.peek && window.matchMedia('(min-width: 900px)').matches; } catch(_) { return false; } }
+let deskTimer = null, deskWas = null;
+window.addEventListener('resize', () => { clearTimeout(deskTimer); deskTimer = setTimeout(() => {
+  const now = isDesk(); if (deskWas === null) { deskWas = now; return; }
+  if (now !== deskWas && state.data && state.data.teacher && !state.peek) { deskWas = now; if (state.tpage === 'renraku' && state.rk && state.rk.data) renderRenraku(); else renderTeacher(); }
+}, 250); });
+const DK_ICON = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
+  ok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+};
+function deskNav(active){
+  const t = state.data.teacher, y = t.予約 || { 承認待ち: [], 次の日の予約: [] };
+  const wait = (y.承認待ち || []).filter(b => b.押せる).length;
+  const items = t.職員 ? [['renraku', 'bell', '保護者・学生への連絡']]
+    : [['home', 'home', 'ホーム'], ['wait', 'ok', '補習の承認', wait], ['book', 'list', '補習の予約'], ['two', 'cal', '2コマ残れる日'], ['renraku', 'bell', '保護者・学生への連絡'], ['mendan', 'flag', '三者面談']];
+  return items.map(([k, ic, name, n]) => '<button aria-current="' + (k === active ? 'page' : 'false') + '" onclick="dkGo(\'' + k + '\')">' + (DK_ICON[ic] || ICON[ic]) + '<span>' + name + '</span>' + (n ? '<span class="n">' + n + '</span>' : '') + '</button>').join('');
+}
+function deskShell(active, title, sub, content){
+  const t = state.data.teacher;
+  return '<div class="dk"><aside class="dk-side"><div class="dk-school">鹿児島工学院専門学校<br>' + (t.職員 ? '職員用' : '先生用') + 'の画面</div>'
+    + '<div class="dk-who">' + esc(t.氏名) + (t.職員 ? '' : ' 先生') + '<small>' + esc(t.職員 ? (t.段階 || '職員') : t.学科 + (t.段階 && t.段階 !== '教員' ? '・' + t.段階 : '')) + '</small></div>'
+    + '<nav class="dk-nav">' + deskNav(active) + '</nav>'
+    + '<div class="dk-foot">画面の版：' + esc(PAGE_VER) + (window.__ver ? '<br>データ係：' + esc(window.__ver) : '') + '</div></aside>'
+    + '<main class="dk-main"><div class="dk-in"><div class="dk-head"><h1>' + esc(title) + '</h1>' + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>' + content + '</div></main></div>';
+}
+function dkGo(k){
+  if (k === 'renraku') { state.tpage = 'renraku'; return openRenraku(); }
+  state.tpage = k; renderDesk(); window.scrollTo(0, 0);
+}
+function renderDesk(){
+  const t = state.data.teacher;
+  deskWas = true;
+  if (t.職員) { state.tpage = 'renraku'; return openRenraku(); }
+  const page = state.tpage && state.tpage !== 'renraku' ? state.tpage : 'home';
+  const tb = teacherBookings(), y = t.予約 || { 承認待ち: [], 次の日の予約: [], 次の日: '' };
+  const wait = (y.承認待ち || []).filter(b => b.押せる).length, two = t.放課後.filter(x => x.二コマ).length;
+  const days = '<ul class="dk-days">' + t.放課後.map((x, i) => '<li class="kday"><span class="date">' + esc(x.表示) + '</span>'
+    + '<button class="two" aria-pressed="' + x.二コマ + '" onclick="setTwo(' + i + ')">' + (x.二コマ ? '✓ 2コマ残れる' : '2コマ残れる') + '</button>' + dayStatus(x) + '</li>').join('') + '</ul>';
+  let title, sub = '', body;
+  if (page === 'wait') { title = '補習の承認'; sub = '2コマ目（〜18:10）の予約は、承認すると確定します'; body = card('book', '承認待ちの予約', tb.wait); }
+  else if (page === 'book') { title = '補習の予約'; sub = esc(y.次の日 || '') + 'の予約（1コマ目・朝補習はその場で確定）'; body = card('list', tb.title || '次の授業日の補習の予約', tb.next); }
+  else if (page === 'two') { title = '2コマ残れる日'; sub = '2コマ補習（〜18:10）まで残れる日だけ押してください'; body = card('cal', '入れた日：' + two + '日', days); }
+  else if (page === 'mendan') { title = '三者面談'; sub = mendanHint(t.面談); body = card('flag', '三者面談', mendanTeacher(t.面談)); }
+  else {
+    title = 'ホーム'; sub = state.data.asOf ? esc(state.data.asOf) : '';
+    const tile = (k, cls, label, v, unit, hint) => '<button class="dk-tile' + (cls ? ' ' + cls : '') + '" onclick="dkGo(\'' + k + '\')"><div class="k">' + label + '</div><div class="v">' + v + '<small>' + unit + '</small></div><div class="h">' + hint + '</div></button>';
+    body = '<div class="dk-tiles">'
+      + tile('wait', wait ? 'alert' : '', '補習の承認待ち', wait, '件', wait ? '押して承認する' : '今はありません')
+      + tile('book', '', esc(y.次の日 || '次の授業日') + 'の補習', (y.次の日の予約 || []).length, '件', '予約を見る')
+      + tile('two', '', '2コマ残れる日', two, '日', '入れた日の数（' + t.放課後.length + '日のうち）')
+      + tile('renraku', '', '保護者・学生への連絡', '<span style="font-size:20px">連絡を作る</span>', '', t.連絡 && t.連絡.範囲 ? '送れる範囲：' + esc(t.連絡.範囲) : '')
+      + '</div><div class="dk-2"><div>' + card('book', '承認待ちの予約', tb.wait) + '</div><div>' + card('list', tb.title || '次の授業日の補習の予約', tb.next) + '</div></div>';
+  }
+  app.innerHTML = deskShell(page, title, sub, body);
 }
 function rkHead(){
   const t = state.data.teacher, k = state.rk || {};
@@ -806,6 +899,15 @@ function rkAll(){ const out = []; (state.rk.data.クラス || []).forEach(c => c
 function renderRenraku(){
   const k = state.rk, d = k.data;
   document.body.dataset.mode = 'teacher';
+  if (isDesk()) {   // 11/19 版54：PCは左のメニューの中に出す
+    const tabs0 = '<div class="seg" style="margin-top:14px;max-width:420px"><button aria-pressed="' + (k.tab === 'make') + '" onclick="state.rk.tab=\'make\';state.rk.detail=null;renderRenraku()">新しい連絡</button>'
+      + '<button aria-pressed="' + (k.tab === 'sent') + '" onclick="state.rk.tab=\'sent\';state.rk.detail=null;renderRenraku()">送った連絡</button></div>';
+    const body0 = k.tab === 'sent' ? (k.detail ? rkDetail() : rkSent()) : rkMake();
+    app.innerHTML = deskShell('renraku', '保護者・学生への連絡', '送れる範囲：' + esc(d.範囲), tabs0 + (k.tab === 'sent' ? '<div style="max-width:820px">' + body0 + '</div>' : body0));
+    if (k.tab === 'make') rkPreview();
+    if (k.tab === 'sent' && !k.detail && !k.sent) rkLoadSent();
+    return;
+  }
   const tabs = '<div class="seg" style="margin-bottom:4px"><button aria-pressed="' + (k.tab === 'make') + '" onclick="state.rk.tab=\'make\';state.rk.detail=null;renderRenraku()">新しい連絡</button>'
     + '<button aria-pressed="' + (k.tab === 'sent') + '" onclick="state.rk.tab=\'sent\';state.rk.detail=null;renderRenraku()">送った連絡</button></div>';
   let body;
@@ -1085,7 +1187,7 @@ function toast(text, bad){
 function footer(){
   return '<footer>このページへのご質問は、学校の窓口へお電話ください。<br>'
     + '<a href="tel:' + TEL + '">' + TEL + '</a>（平日8:30〜17:00）'
-    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：2026-11-19 版52' + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
+    + '<div style="margin-top:8px;font-size:11px;color:#9aa5b1">画面の版：' + PAGE_VER + (window.__ver ? '／データ係：' + esc(window.__ver) : '') + '</div></footer>';
 }
 
 /* ---------- はじまり ---------- */
