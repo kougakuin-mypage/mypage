@@ -258,6 +258,44 @@
   .dk-cal li.today{box-shadow:0 0 0 2px var(--navy) inset}
   .dk-cal li .two{margin:0;width:100%}
   .dk-cal li .by{font-size:12px;color:var(--sub);line-height:1.4;padding-left:0;margin-top:0;flex-basis:auto}
+  .rk-bar{display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:10px 16px}
+  .rk-bar .lb,.md-sum .lb{font-size:12.5px;color:var(--sub);margin-right:8px}
+  .rk-bar>div{display:flex;align-items:center}
+  .rk-bar .seg{margin:0}
+  .rk-bar .chk{margin:0}
+  .rk-hint{font-size:12.5px;color:var(--sub);margin-left:auto}
+  .rk-desk{display:grid;grid-template-columns:1fr 1.1fr;gap:0 16px;align-items:start}
+  .rk-desk #rk_cls{max-height:calc(100vh - 380px);min-height:220px;overflow:auto;padding-right:6px}
+  .dk-tbl{width:100%;border-collapse:collapse;font-size:14px}
+  .dk-tbl th{font-size:12.5px;color:var(--sub);font-weight:500;text-align:left;border-bottom:1px solid var(--line);padding:6px 8px}
+  .dk-tbl td{border-bottom:1px solid var(--line);padding:7px 8px;vertical-align:middle}
+  .dk-tbl tr[onclick]{cursor:pointer}.dk-tbl tr[onclick]:hover td{background:var(--navy-soft)}
+  .dk-tbl td.t{font-weight:700;color:var(--navy)}
+  .md-sum{display:flex;gap:28px;flex-wrap:wrap;align-items:center;font-size:14.5px}
+  .md-cls{margin-top:22px}
+  .md-h{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:6px}
+  .md-h h3{margin:0;font-size:18px;color:var(--navy)}
+  .md-h select{font:inherit;padding:2px 4px}
+  .md-2{display:grid;grid-template-columns:1.7fr 1fr;gap:0 16px;align-items:start}
+  .md-2 .card:first-child,.md-2>div>.card{margin-top:0}
+  .md-wrap{overflow-x:auto}
+  .md-tbl{border-collapse:separate;border-spacing:4px;font-size:13px;width:100%}
+  .md-tbl th{font-size:12px;color:var(--sub);font-weight:500;white-space:nowrap}
+  .md-tbl th.d{text-align:left;color:var(--navy);font-weight:700;font-size:13.5px;padding-right:6px}
+  .md-tbl td{padding:0;text-align:center;height:40px;vertical-align:middle}
+  .md-tbl td button{display:block;width:100%;height:40px;margin:0;border-radius:7px;font:inherit;font-size:12.5px;cursor:pointer;line-height:1.15;padding:0 4px}
+  .md-tbl td button small{display:block;font-size:10.5px;opacity:.8}
+  .md-tbl button.ok{border:1px solid var(--line);background:#fff;color:var(--sub)}
+  .md-tbl button.ok:hover{border-color:var(--navy);color:var(--navy)}
+  .md-tbl button.ng,.md-tbl td.ng{background:#eceff3;border:1px dashed #b9c1cc;color:#8a95a3}
+  .md-tbl td.ng{border-radius:7px;font-size:12px}
+  .md-tbl button.some{background:var(--amber-soft);border:1px solid var(--amber);color:#8a5a12}
+  .md-tbl td.full{background:var(--green-soft);border:1px solid var(--green);color:var(--green);border-radius:7px;font-size:12px;font-weight:700}
+  .md-tbl td.none{background:transparent}
+  .md-tbl tr.ngday th.d{color:#9aa5b1}
+  .md-leg{font-size:12px;color:var(--sub);margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .md-leg span{display:inline-block;padding:1px 8px;border-radius:5px;font-size:11.5px}
+  .md-leg .l-ok{border:1px solid var(--line);background:#fff;color:var(--sub)}.md-leg .l-ng{background:#eceff3;border:1px dashed #b9c1cc;color:#8a95a3}.md-leg .l-full{background:var(--green-soft);border:1px solid var(--green);color:var(--green)}.md-leg .l-some{background:var(--amber-soft);border:1px solid var(--amber);color:#8a5a12}
   .dk-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;list-style:none;padding:0;margin:0}
   .dk-days li.kday{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
   .peekbar{background:#fff4d6;color:#7a5a00;font-size:13px;font-weight:700;text-align:center;padding:6px}
@@ -760,6 +798,40 @@ function mendanTeacher(m){
   if (st && !(m.クラス || []).length) h += '<div class="empty" style="margin-top:10px">担任をしている対象のクラスはありません。</div>';
   return h;
 }
+// 11/19 版56：PCの三者面談。上に設定のまとめ、クラスごとに「日×時間」の表（押してNG）、右に名簿
+function mendanDesk(m){
+  if (!m) return card('flag', '三者面談', '<div class="empty">読み込めませんでした。</div>');
+  if (m.エラー) return card('flag', '三者面談', '<div class="err">' + esc(m.エラー) + '</div>');
+  const st = m.設定;
+  let h = '<div class="card md-sum">' + (st
+      ? '<div><span class="lb">期間</span><b>' + esc(st.始め) + ' 〜 ' + esc(st.終わり) + '</b></div><div><span class="lb">予約の締め切り</span><b>' + esc(st.締め切り表示) + '</b></div><div><span class="lb">面談</span><b>' + st.長さ + '分</b>（間の準備' + st.準備 + '分）</div><div><span class="lb">対象</span><b>' + esc(st.対象.join('・') || 'なし') + '</b></div>'
+      : '<div>まだ今年度の設定がありません。' + (m.設定できる ? '下の「設定（科長）」から入れてください。' : '科長が設定します。') + '</div>')
+    + '</div>';
+  if (m.設定できる) h += '<div class="card">' + mendanSettingForm(m).replace('<details class="done" ', '<details class="done" style="margin-top:0;border-top:0;padding-top:0" ') + '</div>';
+  (m.クラス || []).forEach(c => {
+    const cls = esc(c.クラス);
+    const cols = []; c.日.forEach(d => d.枠.forEach(w => { const k = w.表示.replace(/（.*$/, ''); if (!cols.includes(k)) cols.push(k); }));
+    const grid = '<div class="md-wrap"><table class="md-tbl"><tr><th>日</th>' + cols.map(k => '<th>' + esc(k) + '</th>').join('') + '<th></th></tr>'
+      + c.日.map(d => '<tr' + (d.終日NG ? ' class="ngday"' : '') + '><th class="d">' + esc(d.表示) + '</th>' + cols.map(k => {
+          const w = d.枠.find(x => x.表示.replace(/（.*$/, '') === k);
+          if (!w) return '<td class="none"></td>';
+          if (d.終日NG) return '<td class="ng">NG</td>';
+          if (w.満) return '<td class="full">' + esc(w.予約.join('・')) + '</td>';
+          return '<td><button class="' + (w.NG ? 'ng' : w.予約.length ? 'some' : 'ok') + '" onclick="mendanNg(\'' + cls + '\',\'' + esc(d.日付) + '\',\'' + esc(w.id) + '\',this)">' + (w.NG ? 'NG' : w.予約.length ? esc(w.予約.join('・')) + '<small>あと' + (c.部屋 - w.予約.length) + '</small>' : '空き') + '</button></td>';
+        }).join('') + '<td><button class="mini" style="margin:0" onclick="mendanNg(\'' + cls + '\',\'' + esc(d.日付) + '\',\'*\',this)">' + (d.終日NG ? '戻す' : 'この日NG') + '</button></td></tr>').join('') + '</table></div>'
+      + '<div class="md-leg"><span class="l-ok">空き</span>押すとNG　<span class="l-ng">NG</span>押すと戻る　<span class="l-full">予約済み</span>　<span class="l-some">一部予約</span>（同じ時間に' + c.部屋 + 'か所）</div>';
+    const roster = '<table class="dk-tbl"><tr><th>学生</th><th>予約</th><th>面談</th></tr>' + c.名簿.map(x => '<tr><td' + (x.対象 ? '' : ' style="color:var(--sub);text-decoration:line-through"') + '>' + esc(x.氏名) + '</td>'
+      + '<td>' + (!x.対象 ? '' : x.予約 ? esc(x.予約.replace(/（[^）]*）$/, '')) : '<span class="tag t-未">まだ</span>') + '</td>'
+      + '<td><button class="mini' + (x.対象 ? ' on' : '') + '" style="margin:0" onclick="mendanTarget(\'' + cls + '\',\'' + esc(x.sid) + '\',this)">' + (x.対象 ? 'あり' : 'なし') + '</button></td></tr>').join('') + '</table>';
+    h += '<div class="md-cls"><div class="md-h"><h3>' + esc(clsLabel(c.クラス)) + '</h3><span>予約 <b>' + c.予約数 + '</b> / ' + c.対象数 + '人</span>'
+      + '<span>同じ時間に <select onchange="mendanRooms(\'' + cls + '\',this.value,this)">' + [1, 2, 3, 4].map(n => '<option' + (c.部屋 === n ? ' selected' : '') + '>' + n + '</option>').join('') + '</select> か所</span>'
+      + '<button class="btn" style="width:auto;margin:0 0 0 auto;padding:8px 18px" onclick="mendanSend(\'' + cls + '\',this)">' + (c.案内 ? '保護者にもう一度案内を送る' : '保護者に案内を送る') + '</button></div>'
+      + (c.案内 ? '<div style="font-size:13px;color:var(--sub);margin:-4px 0 8px">案内：' + esc(c.案内) + ' に送りました</div>' : '')
+      + '<div class="md-2"><div>' + card('cal', 'NGの日・時間（押して切り替え）', grid) + '</div><div>' + card('list', '名簿（卒業する学生などは「なし」に）', roster) + '</div></div></div>';
+  });
+  if (st && !(m.クラス || []).length) h += '<div class="card"><div class="empty">担任をしている対象のクラスはありません。</div></div>';
+  return h;
+}
 function mendanSettingForm(m){
   const st = m.設定 || {}, 帯 = (st.時間帯 && st.時間帯.length) ? st.時間帯 : m.初期の時間帯;
   const opt = (vals, cur) => vals.map(v => '<option value="' + v + '"' + (Number(cur) === v ? ' selected' : '') + '>' + v + '分</option>').join('');
@@ -843,7 +915,7 @@ async function openRenraku(){
   try{ const r = await api('renraku_init'); if (!r.ok) throw new Error(r.error); rkMerge(k, r); renderRenraku(); rkQuota(); }
   catch(e){ app.innerHTML = rkHead() + '<div class="wrap"><div class="err">' + esc(String(e && e.message ? e.message : e)) + '</div></div>'; }
 }
-const PAGE_VER = '2026-11-19 版55';   // 画面の版（直したらここを変える）
+const PAGE_VER = '2026-11-19 版56';   // 画面の版（直したらここを変える）
 // ---------- 11/19 版54：PCの先生の画面（左にメニュー・右に中身） ----------
 function isDesk(){ try { return document.body.dataset.mode === 'teacher' && !state.peek && window.matchMedia('(min-width: 900px)').matches; } catch(_) { return false; } }
 let deskTimer = null, deskWas = null;
@@ -907,7 +979,7 @@ function renderDesk(){
   if (page === 'wait') { title = '補習の承認'; sub = '2コマ目（〜18:10）の予約は、承認すると確定します'; body = card('book', '承認待ちの予約', tb.wait); }
   else if (page === 'book') { title = '補習の予約'; sub = esc(y.次の日 || '') + 'の予約（1コマ目・朝補習はその場で確定）'; body = card('list', tb.title || '次の授業日の補習の予約', tb.next); }
   else if (page === 'two') { title = '2コマ残れる日'; sub = '2コマ補習（〜18:10）まで残れる日だけ押してください'; body = card('cal', '入れた日：' + two + '日', days); }
-  else if (page === 'mendan') { title = '三者面談'; sub = mendanHint(t.面談); body = card('flag', '三者面談', mendanTeacher(t.面談)); }
+  else if (page === 'mendan') { title = '三者面談'; sub = mendanHint(t.面談); body = mendanDesk(t.面談); }
   else {
     title = 'ホーム'; sub = state.data.asOf ? esc(state.data.asOf) : '';
     const tile = (k, cls, label, v, unit, hint) => '<button class="dk-tile' + (cls ? ' ' + cls : '') + '" onclick="dkGo(\'' + k + '\')"><div class="k">' + label + '</div><div class="v">' + v + '<small>' + unit + '</small></div><div class="h">' + hint + '</div></button>';
@@ -969,6 +1041,16 @@ function rkMake(){
     + '<label class="chk" style="margin-top:10px"><input type="checkbox"' + (f.確認 ? ' checked' : '') + ' onchange="state.rk.form.確認=this.checked;state.rk.sure=false;rkPreview()"> 「確認しました」ボタンを付ける</label>'
     + '<div style="font-size:12.5px;color:var(--sub)">受け取った人のマイページにボタンが出て、確認した人・まだの人が「送った連絡」で分かります（書類の提出など）。</div></div>');
   const prev = card('bell', '送る前の確認', '<div id="rk_prev"></div>') + rkTplSave();
+  if (isDesk()) {   // 11/19 版56：PCは、上に「相手・種類・確認ボタン」の帯、左に宛先（名簿は枠の中でスクロール）、右に文と送る前の確認
+    const bar = '<div class="card rk-bar"><div><span class="lb">送る相手</span>' + seg('相手', ['保護者', '学生', '両方'], f.相手, 'rkSetAite') + '</div>'
+      + '<div><span class="lb">種類</span>' + seg('種類', ['お知らせ', '緊急'], f.種類, 'rkSetShurui') + '</div>'
+      + '<label class="chk"><input type="checkbox"' + (f.確認 ? ' checked' : '') + ' onchange="state.rk.form.確認=this.checked;state.rk.sure=false;rkReRoster()"> 「確認しました」ボタンを付ける</label>'
+      + '<div class="rk-hint">' + (f.種類 === '緊急' ? '<b style="color:var(--red)">緊急</b>：夜でもすぐ届き、頭に【緊急】が付きます' : '夜（21:00〜7:00）に送ると、翌朝7:30ごろに届けます') + '</div></div>';
+    const text2 = card('doc', '連絡の文', rkTpl()
+      + '<div class="form"><label>本文<textarea id="rk_b" rows="9" maxlength="1500" style="display:block;width:100%;margin-top:4px;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:8px" placeholder="宛名と学校名・返信できない旨は自動で付きます。学生の名前を出したいところは {名前} と書くと「○○さん」に変わります" oninput="state.rk.form.本文=this.value;state.rk.sure=false;rkPreview()">' + esc(f.本文) + '</textarea></label>'
+      + '<label>題名<span style="font-weight:500;font-size:12.5px;color:var(--sub)">（探すための名前・相手には出ません）</span><input id="rk_t" maxlength="60" placeholder="例：奨学金の書類（給付）" value="' + esc(f.タイトル) + '" oninput="state.rk.form.タイトル=this.value;state.rk.sure=false"></label></div>');
+    return bar + '<div class="rk-desk"><div>' + to + '</div><div>' + text2 + prev + '</div></div>';
+  }
   return '<div class="rkgrid"><div>' + kind + to + '</div><div>' + text + prev + '</div></div>';   // 11/19：PCでは左に宛先、右に文と確認
 }
 function rkRoster(){
@@ -1061,7 +1143,7 @@ async function rkTplDel(id, btn){
     state.rk.data.定型文 = r.定型文 || state.rk.data.定型文; rkReRoster(); toast(r.message); }
   catch(e){ btn.disabled = false; toast(String(e && e.message ? e.message : e), true); }
 }
-function rkReRoster(){ const y = window.scrollY; renderRenraku(); window.scrollTo(0, y); }
+function rkReRoster(){ const y = window.scrollY, el = document.getElementById('rk_cls'), st = el ? el.scrollTop : 0; renderRenraku(); window.scrollTo(0, y); const e2 = document.getElementById('rk_cls'); if (e2) e2.scrollTop = st; }   // 名簿の枠の中のスクロール位置も保つ
 let rkTimer = null;
 function rkSearch(v){ state.rk.q = v; clearTimeout(rkTimer); rkTimer = setTimeout(() => { rkReRoster(); const i = document.getElementById('rk_q'); if (i){ i.focus(); i.setSelectionRange(v.length, v.length); } }, 300); }
 function rkToggle(sid, on){ const k = state.rk; if (on) k.sel.add(sid); else k.sel.delete(sid); k.sure = false; rkReRoster(); }
@@ -1175,6 +1257,11 @@ function rkSent(){
   const search = '<input id="rk_sq" placeholder="題名・本文の言葉でさがす" value="' + esc(k.sentQ || '') + '" oninput="rkSentSearch(this.value)" style="width:100%;font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px">';
   if (!list) return card('list', '送った連絡', search + '<div class="center" style="min-height:120px"><div class="spinner"></div><div>読み込んでいます…</div></div>');
   if (!list.length) return card('list', '送った連絡', search + '<div class="empty">' + (k.sentQ ? '見つかりませんでした。' : 'まだ送った連絡はありません。') + '</div>');
+  if (isDesk()) return card('list', '送った連絡', search + '<table class="dk-tbl"><tr><th>送った日時</th><th>題名</th><th>相手</th><th>人数</th><th>届いた</th><th>確認</th><th>送った人</th></tr>'
+    + list.map(x => '<tr onclick="rkOpenDetail(\'' + esc(x.id) + '\')"><td>' + esc(x.日時) + '</td><td class="t">' + (x.種類 === '緊急' ? '<span class="tag t-欠席" style="margin-right:4px">緊急</span>' : '') + esc(x.タイトル) + '</td><td>' + esc(x.相手) + '</td><td>' + x.人数 + '人</td>'
+      + '<td>' + (x.状態 === '朝に送る' ? '朝に送る' : x.送った数 + '通' + (x.届かなかった数 ? '<span style="color:var(--red)">（届かず' + x.届かなかった数 + '）</span>' : '')) + '</td>'
+      + '<td>' + (x.確認つき ? '<span class="tag ' + (x.確認数 >= x.人数 ? 't-済' : 't-確認中') + '">' + x.確認数 + '/' + x.人数 + '</span>' : '<span style="color:var(--sub)">―</span>') + '</td><td>' + (x.自分の ? '自分' : esc(x.先生)) + '</td></tr>').join('') + '</table>'
+    + '<div style="font-size:12.5px;color:var(--sub);margin-top:6px">行を押すと、誰に届いたか・確認したかが見られます。</div>');
   return card('list', '送った連絡', search + '<ul class="list">' + list.map((x, i) => '<li style="cursor:pointer" onclick="rkOpenDetail(\'' + esc(x.id) + '\')"><span class="date">' + esc(x.日時.replace(/（.*?）/, '')) + '</span>'
     + '<span class="body">' + (x.種類 === '緊急' ? '<span class="tag t-欠席" style="margin-right:4px">緊急</span>' : '') + esc(x.タイトル)
     + '<div class="s">' + esc(x.相手) + '・' + x.人数 + '人 → ' + (x.状態 === '朝に送る' ? '明日の朝に届けます' : x.送った数 + '通' + (x.届かなかった数 ? '（届かず' + x.届かなかった数 + '）' : '')) + (x.自分の ? '' : '　送った人：' + esc(x.先生)) + '</div></span>'
